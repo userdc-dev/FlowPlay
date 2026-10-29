@@ -1,3 +1,21 @@
+# FlowPlay
+
+Phone and tablet video player based on NewPipe v0.29.1. Independent GPL-3.0-or-later fork; not affiliated with or endorsed by TeamNewPipe.
+
+## First preview
+
+Deep navy surfaces, mint controls, a new launcher icon, and a separate application ID so FlowPlay can coexist with NewPipe. Existing upstream playback, background audio, popup player, queue controls, downloads, subscriptions, and history are retained.
+
+The FlowPlay APK workflow builds an installable preview and runs upstream JVM tests. Download FlowPlay-preview from a successful Actions run. Preview builds use disposable debug signing: a later build may require exporting your database and reinstalling. Production signing must be configured before a durable release.
+
+## Still to implement and validate
+
+Continuous swipe Shorts, local recommendations, and a broader navigation redesign are not implemented in this preview. Playback stability has not been validated on a physical phone. Test long videos, screen-off audio, quality/speed changes, queue edits, and Wi-Fi/mobile transitions before relying on it.
+
+Source and license are provided in this repository. Upstream credits and documentation follow.
+
+---
+
 <p align="center"><a href="https://newpipe.net"><img src="assets/new_pipe_icon_5.png" width="150"></a></p> 
 <h2 align="center"><b>NewPipe</b></h2>
 <h4 align="center">A libre lightweight streaming front-end for Android.</h4>
