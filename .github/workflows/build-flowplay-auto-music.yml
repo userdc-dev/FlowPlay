@@ -1,4 +1,4 @@
-name: Build FlowPlay Auto Music APK
+name: Build Flow Play APK
 
 on:
   push:
@@ -22,6 +22,11 @@ jobs:
         with:
           distribution: temurin
           java-version: '21'
+
+      - name: Recolour launcher icons for all Android versions
+        run: |
+          python3 -m pip install --user Pillow
+          python3 scripts/recolor_launcher.py
 
       - name: Install Android SDK command-line tools and Android 37
         shell: bash
@@ -54,16 +59,16 @@ jobs:
           mkdir -p dist
           source_apk="$(find app/build/outputs/apk/continuous -name '*.apk' -type f | head -n 1)"
           test -n "$source_apk" && test -s "$source_apk"
-          cp "$source_apk" "dist/FlowPlay_Auto_Music_0.29.1.apk"
-          unzip -tq "dist/FlowPlay_Auto_Music_0.29.1.apk"
-          sha256sum "dist/FlowPlay_Auto_Music_0.29.1.apk" | tee dist/SHA256SUMS.txt
+          cp "$source_apk" "dist/Flow_Play_0.29.1.apk"
+          unzip -tq "dist/Flow_Play_0.29.1.apk"
+          sha256sum "dist/Flow_Play_0.29.1.apk" | tee dist/SHA256SUMS.txt
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: FlowPlay-Auto-Music-APK
+          name: Flow-Play-APK
           path: |
-            dist/FlowPlay_Auto_Music_0.29.1.apk
+            dist/Flow_Play_0.29.1.apk
             dist/SHA256SUMS.txt
           if-no-files-found: error
           retention-days: 30
@@ -75,13 +80,13 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          tag="flowplay-auto-music-0.29.1"
+          tag="flow-play-charcoal-0.29.1"
           if gh release view "$tag" > /dev/null 2>&1; then
-            gh release upload "$tag" dist/FlowPlay_Auto_Music_0.29.1.apk dist/SHA256SUMS.txt --clobber
+            gh release upload "$tag" dist/Flow_Play_0.29.1.apk dist/SHA256SUMS.txt --clobber
           else
-            gh release create "$tag" dist/FlowPlay_Auto_Music_0.29.1.apk dist/SHA256SUMS.txt \
+            gh release create "$tag" dist/Flow_Play_0.29.1.apk dist/SHA256SUMS.txt \
               --target "$GITHUB_SHA" \
-              --title "FlowPlay Auto Music 0.29.1 (test build)" \
-              --notes "Experimental, separately installable Android Auto audio player. Includes Explore music, playlist/history browsing, car search integration, charcoal interface and phone video gestures. Play music only while driving. Not verified on a physical Android Auto head unit." \
+              --title "Flow Play 0.29.1 (charcoal edition)" \
+              --notes "Flow Play charcoal edition: updated launcher icons and name. Experimental Android Auto audio browser, search, playlist/history and phone video gestures. No car-screen video playback. Android Auto functionality is not verified on a physical head unit." \
               --prerelease
           fi
