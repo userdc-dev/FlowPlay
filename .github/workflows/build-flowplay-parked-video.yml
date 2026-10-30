@@ -77,15 +77,15 @@ jobs:
           source_apk="$(find app/build/outputs/apk/continuous -name '*.apk' -type f | head -n 1)"
           test -n "$source_apk" && test -s "$source_apk"
           cp "$source_apk" "dist/Flow_Play_Parked_Video_Test_0.29.1.apk"
-          unzip -tq "dist/Flow_Play_0.29.1.apk"
-          sha256sum "dist/Flow_Play_0.29.1.apk" | tee dist/SHA256SUMS.txt
+          unzip -tq "dist/Flow_Play_Parked_Video_Test_0.29.1.apk"
+          sha256sum "dist/Flow_Play_Parked_Video_Test_0.29.1.apk" | tee dist/SHA256SUMS.txt
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: Flow-Play-Parked-Video-Test-APK
           path: |
-            dist/Flow_Play_0.29.1.apk
+            dist/Flow_Play_Parked_Video_Test_0.29.1.apk
             dist/SHA256SUMS.txt
           if-no-files-found: error
           retention-days: 30
@@ -99,9 +99,9 @@ jobs:
           set -euo pipefail
           tag="flow-play-parked-video-test-0.29.1"
           if gh release view "$tag" > /dev/null 2>&1; then
-            gh release upload "$tag" dist/Flow_Play_0.29.1.apk dist/SHA256SUMS.txt --clobber
+            gh release upload "$tag" dist/Flow_Play_Parked_Video_Test_0.29.1.apk dist/SHA256SUMS.txt --clobber
           else
-            gh release create "$tag" dist/Flow_Play_0.29.1.apk dist/SHA256SUMS.txt \
+            gh release create "$tag" dist/Flow_Play_Parked_Video_Test_0.29.1.apk dist/SHA256SUMS.txt \
               --target "$GITHUB_SHA" \
               --title "Flow Play 0.29.1 - Parked Video Test (experimental)" \
               --notes "EXPERIMENTAL TEST ONLY. Adds Android Auto CAR_LAUNCHER entry and video app category so compatible Android Auto systems may launch the full Flow Play video browser while parked. Existing music browsing/search is retained. Playback is stopped when car video activity pauses. Official Android Auto video compatibility is not generally available in October 2026 and depends on your head unit and Google rollout. This APK does not bypass platform restrictions. DO NOT USE VIDEO WHILE DRIVING." \
