@@ -30,16 +30,59 @@ class MainPlayerGestureListener(
     private val playerUi: MainPlayerUi
 ) : BasePlayerGestureListener(playerUi), OnTouchListener {
     private var isMoving = false
+    private var swipeStartX = 0f
+    private var swipeStartY = 0f
+    private var canToggleFullscreenOnSwipe = false
 
     override fun onTouch(v: View, event: MotionEvent): Boolean {
-        super.onTouch(v, event)
-        if (event.action == MotionEvent.ACTION_UP && isMoving) {
-            isMoving = false
-            onScrollEnd(event)
+        // Reserve the centre third for vertical fullscreen toggling.
+        // Keep left/right brightness/volume gestures and double-tap seeking intact.
+        when (event.actionMasked) {
+            MotionEvent.ACTION_DOWN -> {
+                swipeStartX = event.x
+                swipeStartY = event.y
+                canToggleFullscreenOnSwipe =
+                    getDisplayPortion(event) == DisplayPortion.MIDDLE &&
+                        !isDoubleTapping && !playerUi.isSomePopupMenuVisible
+            }
+            MotionEvent.ACTION_POINTER_DOWN -> canToggleFullscreenOnSwipe = false
         }
+
+        super.onTouch(v, event)
+
+        if (event.actionMasked == MotionEvent.ACTION_UP) {
+            val verticalTravel = event.y - swipeStartY
+            val horizontalTravel = abs(event.x - swipeStartX)
+            val swipeThreshold = 64f * v.resources.displayMetrics.density
+            val isFullscreenSwipe =
+                canToggleFullscreenOnSwipe &&
+                    !isDoubleTapping &&
+                    abs(verticalTravel) >= swipeThreshold &&
+                    abs(verticalTravel) > horizontalTravel * 1.4f &&
+                    (if (playerUi.isFullscreen) verticalTravel > 0f else verticalTravel < 0f)
+            canToggleFullscreenOnSwipe = false
+            if (isMoving) {
+                isMoving = false
+                onScrollEnd(event)
+            }
+            if (isFullscreenSwipe) {
+                // Delegates orientation/layout changes to NewPipe itself.
+                // Reuse the existing rotation/fullscreen action, just like tapping
+                // NewPipe's fullscreen control. This also handles portrait videos.
+                v.parent?.requestDisallowInterceptTouchEvent(false)
+                binding.screenRotationButton.performClick()
+                return true
+            }
+        } else if (event.actionMasked == MotionEvent.ACTION_CANCEL) {
+            canToggleFullscreenOnSwipe = false
+            isMoving = false
+        }
+
         return when (event.action) {
             MotionEvent.ACTION_DOWN, MotionEvent.ACTION_MOVE -> {
-                v.parent?.requestDisallowInterceptTouchEvent(playerUi.isFullscreen)
+                v.parent?.requestDisallowInterceptTouchEvent(
+                    playerUi.isFullscreen || canToggleFullscreenOnSwipe
+                )
                 true
             }
 
@@ -170,7 +213,20 @@ class MainPlayerGestureListener(
         distanceX: Float,
         distanceY: Float
     ): Boolean {
-        if (initialEvent == null || !playerUi.isFullscreen) {
+        if (initialEvent == null) {
+            return false
+        }
+
+        // The centre swipe is reserved for expanding/collapsing fullscreen,
+        // never brightness/volume. The actual action happens on finger release.
+        if (getDisplayPortion(initialEvent) == DisplayPortion.MIDDLE) {
+            if (abs(movingEvent.y - initialEvent.y) > MOVEMENT_THRESHOLD) {
+                isMoving = true
+            }
+            return true
+        }
+
+        if (!playerUi.isFullscreen) {
             return false
         }
 
