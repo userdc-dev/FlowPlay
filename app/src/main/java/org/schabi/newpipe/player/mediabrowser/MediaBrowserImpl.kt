@@ -53,6 +53,17 @@ class MediaBrowserImpl(
     private val packageValidator = PackageValidator(context)
     private val database = NewPipeDatabase.getInstance(context)
     private var disposables = CompositeDisposable()
+    // These categories are available even when the fork's separate local library is empty.
+    // Android Auto itself supplies the voice / parked text-search interface.
+    private val discoveryCategories = listOf(
+        "Popular music" to "popular music hits",
+        "New music" to "new music songs",
+        "Chill music" to "relaxing chill music",
+        "Rock music" to "rock music hits",
+        "Electronic music" to "electronic dance music",
+        "Hindi music" to "Hindi songs",
+        "Podcasts" to "popular podcasts"
+    )
 
     init {
         // this will listen to changes in the bookmarks until this MediaBrowserImpl is dispose()d
@@ -110,7 +121,9 @@ class MediaBrowserImpl(
                     { result.sendResult(it) },
                     { throwable ->
                         // null indicates an error, see the docs of MediaSessionCompat.onSearch()
-                        result.sendResult(null)
+                        // A failed remote list or empty local database should not leave the
+                        // Android Auto browser spinning indefinitely.
+                        result.sendResult(emptyList())
                         Log.e(TAG, "onLoadChildren error for parentId=$parentId: $throwable")
                     }
                 )
@@ -126,6 +139,11 @@ class MediaBrowserImpl(
                 return Single.just(
                     listOf(
                         createRootMediaItem(
+                            ID_DISCOVER,
+                            "Explore music",
+                            R.drawable.ic_music_note
+                        ),
+                        createRootMediaItem(
                             ID_BOOKMARKS,
                             context.resources.getString(R.string.tab_bookmarks_short),
                             R.drawable.ic_bookmark_white
@@ -140,6 +158,29 @@ class MediaBrowserImpl(
             }
 
             when (path.removeAt(0)) {
+                ID_DISCOVER -> {
+                    if (path.isEmpty()) {
+                        return Single.just(discoveryCategories.mapIndexed { index, category ->
+                            createRootMediaItem(
+                                "$ID_DISCOVER/$index",
+                                category.first,
+                                R.drawable.ic_music_note
+                            )
+                        })
+                    }
+                    val index = path.singleOrNull()?.toIntOrNull()
+                    if (index != null && index in discoveryCategories.indices) {
+                        return searchMusicBySongTitle(discoveryCategories[index].second)
+                            .subscribeOn(Schedulers.io())
+                            .map { search ->
+                                search.relatedItems.filterIsInstance<StreamInfoItem>()
+                                    .take(30)
+                                    .mapNotNull(this::createInfoItemMediaItem)
+                            }
+                    }
+                    throw parseError(parentId)
+                }
+
                 ID_BOOKMARKS -> {
                     if (path.isEmpty()) {
                         return populateBookmarks()
@@ -396,7 +437,7 @@ class MediaBrowserImpl(
                     { result.sendResult(it) },
                     { throwable ->
                         // null indicates an error, see the docs of MediaSessionCompat.onSearch()
-                        result.sendResult(null)
+                        result.sendResult(emptyList())
                         Log.e(TAG, "Search error for query=\"$query\": $throwable")
                     }
                 )
@@ -405,7 +446,8 @@ class MediaBrowserImpl(
 
     private fun searchMusicBySongTitle(query: String?): Single<SearchInfo> {
         val serviceId = ServiceHelper.getSelectedServiceId(context)
-        return ExtractorHelper.searchFor(serviceId, query, listOf(), "")
+        val normalizedQuery = query?.trim().takeUnless { it.isNullOrBlank() } ?: "popular music"
+        return ExtractorHelper.searchFor(serviceId, normalizedQuery, listOf(), "")
     }
     //endregion
 
