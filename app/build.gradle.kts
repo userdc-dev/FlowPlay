@@ -67,7 +67,7 @@ configure<ApplicationExtension> {
                 resValue("string", "app_name", "NewPipe Debug")
             } else {
                 applicationIdSuffix = ".debug.$normalizedWorkingBranch"
-                resValue("string", "app_name", "NewPipe $workingBranch")
+                resValue("string", "app_name", "FlowPlay Auto Music")
             }
         }
 
@@ -95,7 +95,7 @@ configure<ApplicationExtension> {
                 resValue("string", "app_name", "NewPipe Continuous")
             } else {
                 applicationIdSuffix = ".continuous.$normalizedWorkingBranch"
-                resValue("string", "app_name", "NewPipe $workingBranch")
+                resValue("string", "app_name", "FlowPlay Auto Music")
             }
         }
     }
