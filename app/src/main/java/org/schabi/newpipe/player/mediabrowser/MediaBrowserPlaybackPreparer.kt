@@ -22,6 +22,7 @@ import org.schabi.newpipe.R
 import org.schabi.newpipe.error.ErrorInfo
 import org.schabi.newpipe.extractor.InfoItem.InfoType
 import org.schabi.newpipe.extractor.exceptions.ContentNotAvailableException
+import org.schabi.newpipe.extractor.stream.StreamInfoItem
 import org.schabi.newpipe.extractor.linkhandler.ListLinkHandler
 import org.schabi.newpipe.local.playlist.LocalPlaylistManager
 import org.schabi.newpipe.local.playlist.RemotePlaylistManager
@@ -32,6 +33,7 @@ import org.schabi.newpipe.player.playqueue.SinglePlayQueue
 import org.schabi.newpipe.util.ChannelTabHelper
 import org.schabi.newpipe.util.ExtractorHelper
 import org.schabi.newpipe.util.NavigationHelper
+import org.schabi.newpipe.util.ServiceHelper
 
 /**
  * This class is used to cleanly separate the Service implementation (in
@@ -62,7 +64,8 @@ class MediaBrowserPlaybackPreparer(
 
     //region Overrides
     override fun getSupportedPrepareActions(): Long {
-        return PlaybackStateCompat.ACTION_PLAY_FROM_MEDIA_ID
+        return PlaybackStateCompat.ACTION_PLAY_FROM_MEDIA_ID or
+            PlaybackStateCompat.ACTION_PLAY_FROM_SEARCH
     }
 
     override fun onPrepare(playWhenReady: Boolean) {
@@ -91,7 +94,35 @@ class MediaBrowserPlaybackPreparer(
     }
 
     override fun onPrepareFromSearch(query: String, playWhenReady: Boolean, extras: Bundle?) {
-        onUnsupportedError()
+        // Android Auto sends its own voice / parked-search query to this callback.
+        // Search the currently selected NewPipe service asynchronously.
+        val normalizedQuery = query.trim().ifBlank { "popular music" }
+        disposable?.dispose()
+        disposable = ExtractorHelper.searchFor(
+            ServiceHelper.getSelectedServiceId(context),
+            normalizedQuery,
+            listOf(),
+            ""
+        )
+            .subscribeOn(Schedulers.io())
+            .map { search ->
+                val streams = search.relatedItems.filterIsInstance<StreamInfoItem>().take(50)
+                if (streams.isEmpty()) {
+                    throw ContentNotAvailableException("No playable results for: $normalizedQuery")
+                }
+                SinglePlayQueue(streams, 0)
+            }
+            .observeOn(AndroidSchedulers.mainThread())
+            .subscribe(
+                { queue ->
+                    clearMediaSessionError.run()
+                    NavigationHelper.playOnBackgroundPlayer(context, queue, playWhenReady)
+                },
+                { throwable ->
+                    Log.e(TAG, "Android Auto search playback failed for: $normalizedQuery", throwable)
+                    onPrepareError(throwable)
+                }
+            )
     }
 
     override fun onPrepareFromUri(uri: Uri, playWhenReady: Boolean, extras: Bundle?) {
