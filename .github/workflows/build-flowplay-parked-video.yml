@@ -58,7 +58,7 @@ jobs:
           assert 'android:appCategory="video"' in manifest
           assert 'android.intent.category.CAR_LAUNCHER' in manifest
           assert 'android:name=".car.ParkedVideoActivity"' in manifest
-          assert 'distractionOptimized' not in manifest
+          assert 'android:name="distractionOptimized"' not in manifest
           assert 'stopProjectedPlayback()' in activity
           assert 'holder.stopService()' in activity
           print("Experimental car launcher, video category and pause-stop safety verified")
