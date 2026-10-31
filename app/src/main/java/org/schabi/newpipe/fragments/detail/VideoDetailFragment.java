@@ -108,6 +108,7 @@ import org.schabi.newpipe.player.ui.VideoPlayerUi;
 import org.schabi.newpipe.util.Constants;
 import org.schabi.newpipe.util.DeviceUtils;
 import org.schabi.newpipe.util.ExtractorHelper;
+import org.schabi.newpipe.util.FlowPlayUnavailableStreams;
 import org.schabi.newpipe.util.InfoCache;
 import org.schabi.newpipe.util.ListHelper;
 import org.schabi.newpipe.util.Localization;
@@ -882,8 +883,14 @@ public final class VideoDetailFragment
                             openVideoPlayerAutoFullscreen();
                         }
                     }
-                }, throwable -> showError(new ErrorInfo(throwable, UserAction.REQUESTED_STREAM,
-                        url == null ? "no url" : url, serviceId, url)));
+                }, throwable -> {
+                    if (getContext() != null) {
+                        FlowPlayUnavailableStreams.rememberIfConfirmedUnavailable(
+                                requireContext(), url, throwable);
+                    }
+                    showError(new ErrorInfo(throwable, UserAction.REQUESTED_STREAM,
+                            url == null ? "no url" : url, serviceId, url));
+                });
     }
 
     /*//////////////////////////////////////////////////////////////////////////

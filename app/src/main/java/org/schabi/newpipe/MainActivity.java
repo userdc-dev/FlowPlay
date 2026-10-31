@@ -88,6 +88,7 @@ import org.schabi.newpipe.util.KioskTranslator;
 import org.schabi.newpipe.util.Localization;
 import org.schabi.newpipe.util.NavigationHelper;
 import org.schabi.newpipe.util.PermissionHelper;
+import org.schabi.newpipe.util.FlowPlayOverlayOnboarding;
 import org.schabi.newpipe.util.ReleaseVersionUtil;
 import org.schabi.newpipe.util.SerializedCache;
 import org.schabi.newpipe.util.ServiceHelper;
@@ -128,6 +129,7 @@ public class MainActivity extends AppCompatActivity {
     private static final int ORDER = 0;
     public static final String KEY_IS_IN_BACKGROUND = "is_in_background";
 
+    private FlowPlayOverlayOnboarding flowPlayOverlayOnboarding;
     private SharedPreferences sharedPreferences;
     private SharedPreferences.Editor sharedPrefEditor;
     /*//////////////////////////////////////////////////////////////////////////
@@ -160,6 +162,7 @@ public class MainActivity extends AppCompatActivity {
 
         super.onCreate(savedInstanceState);
         sharedPreferences = PreferenceManager.getDefaultSharedPreferences(this);
+        flowPlayOverlayOnboarding = new FlowPlayOverlayOnboarding(this);
         sharedPrefEditor = sharedPreferences.edit();
 
         mainBinding = ActivityMainBinding.inflate(getLayoutInflater());
@@ -392,6 +395,12 @@ public class MainActivity extends AppCompatActivity {
         // Close drawer on return, and don't show animation,
         // so it looks like the drawer isn't open when the user returns to MainActivity
         mainBinding.getRoot().closeDrawer(GravityCompat.START, false);
+        // First-launch overlay guidance and second-step return from Android Settings.
+        new Handler(Looper.getMainLooper()).postDelayed(() -> {
+            if (!isFinishing() && !isDestroyed() && !DeviceUtils.isTv(this)) {
+                flowPlayOverlayOnboarding.maybeShow();
+            }
+        }, 1000);
         if (sharedPreferences.getBoolean(Constants.KEY_THEME_CHANGE, false)) {
             if (DEBUG) {
                 Log.d(TAG, "Theme has changed, recreating activity...");

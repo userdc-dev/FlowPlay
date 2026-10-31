@@ -1,10 +1,12 @@
 package org.schabi.newpipe.local.holder;
 
+import android.graphics.Color;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageView;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.core.content.ContextCompat;
 
@@ -15,6 +17,7 @@ import org.schabi.newpipe.ktx.ViewUtils;
 import org.schabi.newpipe.local.LocalItemBuilder;
 import org.schabi.newpipe.local.history.HistoryRecordManager;
 import org.schabi.newpipe.util.DependentPreferenceHelper;
+import org.schabi.newpipe.util.FlowPlayUnavailableStreams;
 import org.schabi.newpipe.util.Localization;
 import org.schabi.newpipe.util.ServiceHelper;
 import org.schabi.newpipe.util.image.CoilHelper;
@@ -22,6 +25,8 @@ import org.schabi.newpipe.views.AnimatedProgressBar;
 
 import java.time.format.DateTimeFormatter;
 import java.util.concurrent.TimeUnit;
+
+import coil3.util.CoilUtils;
 
 public class LocalPlaylistStreamItemHolder extends LocalItemHolder {
     public final ImageView itemThumbnailView;
@@ -61,6 +66,34 @@ public class LocalPlaylistStreamItemHolder extends LocalItemHolder {
         itemAdditionalDetailsView.setText(Localization
                 .concatenateStrings(item.getStreamEntity().getUploader(),
                         ServiceHelper.getNameOfServiceById(item.getStreamEntity().getServiceId())));
+
+        if (FlowPlayUnavailableStreams.isUnavailable(itemBuilder.getContext(),
+                item.getStreamEntity().getTitle(), item.getStreamEntity().getUrl())) {
+            CoilUtils.dispose(itemThumbnailView);
+            itemThumbnailView.setImageDrawable(null);
+            itemThumbnailView.setBackgroundColor(Color.DKGRAY);
+            itemVideoTitleView.setAlpha(0.6f);
+            itemAdditionalDetailsView.setText(R.string.flowplay_unavailable);
+            itemDurationView.setText(R.string.flowplay_unavailable);
+            itemDurationView.setBackgroundColor(ContextCompat.getColor(itemBuilder.getContext(),
+                    R.color.duration_background_color));
+            itemDurationView.setVisibility(View.VISIBLE);
+            itemProgressView.setVisibility(View.GONE);
+            itemView.setOnClickListener(v -> Toast.makeText(itemBuilder.getContext(),
+                    R.string.flowplay_unavailable_message, Toast.LENGTH_SHORT).show());
+            // Keep long press and drag so a broken bookmark can be removed.
+            itemView.setLongClickable(true);
+            itemView.setOnLongClickListener(v -> {
+                if (itemBuilder.getOnItemSelectedListener() != null) {
+                    itemBuilder.getOnItemSelectedListener().held(item);
+                }
+                return true;
+            });
+            itemHandleView.setOnTouchListener(getOnTouchListener(item));
+            return;
+        }
+        itemThumbnailView.setBackgroundColor(Color.TRANSPARENT);
+        itemVideoTitleView.setAlpha(1.0f);
 
         if (item.getStreamEntity().getDuration() > 0) {
             itemDurationView.setText(Localization

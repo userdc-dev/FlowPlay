@@ -274,6 +274,15 @@ public class PlaylistFragment extends BaseListInfoFragment<StreamInfoItem, Playl
     }
 
     @Override
+    public void onResume() {
+        super.onResume();
+        // Rebind URLs confirmed unavailable after opening their detail pages.
+        if (infoListAdapter != null) {
+            infoListAdapter.notifyDataSetChanged();
+        }
+    }
+
+    @Override
     public void handleNextItems(final ListExtractor.InfoItemsPage result) {
         super.handleNextItems(result);
         setStreamCountAndOverallDuration(result.getItems(), !result.hasNextPage());

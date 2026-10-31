@@ -265,6 +265,14 @@ public class LocalPlaylistFragment extends BaseLocalListFragment<List<PlaylistSt
     ///////////////////////////////////////////////////////////////////////////
 
     @Override
+    public void onResume() {
+        super.onResume();
+        if (itemListAdapter != null) {
+            itemListAdapter.notifyDataSetChanged();
+        }
+    }
+
+    @Override
     public void onPause() {
         super.onPause();
         itemsListState = itemsList.getLayoutManager().onSaveInstanceState();

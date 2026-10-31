@@ -1,4 +1,4 @@
-name: Build Flow Play Simple Menu APK
+name: Build Flow Play YouTube Links and Playlist Reliability APK
 
 on:
   push:
@@ -143,6 +143,31 @@ jobs:
           ! grep -q 'drawer_header_action_button' app/src/main/res/layout/drawer_header.xml
           echo "Direct Backup and restore link, always-visible bottom kiosks and clean Flow Play branding verified"
 
+      - name: Verify YouTube-only links and unavailable playlist handling
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import xml.etree.ElementTree as ET
+          manifest = ET.parse("app/src/main/AndroidManifest.xml")
+          android = "{http://schemas.android.com/apk/res/android}"
+          hosts = {e.attrib[android+"host"] for e in manifest.iter("data") if android+"host" in e.attrib}
+          allowed = {"youtube.com", "m.youtube.com", "www.youtube.com",
+                     "music.youtube.com", "youtu.be", "www.youtube-nocookie.com"}
+          assert hosts <= allowed, sorted(hosts - allowed)
+          assert {"youtube.com","youtu.be","music.youtube.com"} <= hosts
+          ET.parse("app/src/main/res/values/strings.xml")
+          print("YouTube supported hosts only:", sorted(hosts))
+          PY
+          grep -q 'FlowPlayOverlayOnboarding' app/src/main/java/org/schabi/newpipe/MainActivity.java
+          grep -q 'ACTION_APPLICATION_DETAILS_SETTINGS' app/src/main/java/org/schabi/newpipe/util/FlowPlayOverlayOnboarding.java
+          grep -q 'ACTION_MANAGE_OVERLAY_PERMISSION' app/src/main/java/org/schabi/newpipe/util/FlowPlayOverlayOnboarding.java
+          grep -q 'ContentNotAvailableException' app/src/main/java/org/schabi/newpipe/util/FlowPlayUnavailableStreams.java
+          grep -q 'FlowPlayUnavailableStreams.isUnavailable' app/src/main/java/org/schabi/newpipe/info_list/holder/StreamMiniInfoItemHolder.java
+          grep -q 'FlowPlayUnavailableStreams.isUnavailable' app/src/main/java/org/schabi/newpipe/local/holder/LocalPlaylistStreamItemHolder.java
+          grep -q 'rememberIfConfirmedUnavailable' app/src/main/java/org/schabi/newpipe/fragments/detail/VideoDetailFragment.java
+          echo "YouTube link filtering, unavailable labels and overlay onboarding verified"
+
       - name: Build signed debug-key Continuous APK
         run: |
           chmod +x gradlew
@@ -155,16 +180,16 @@ jobs:
           mkdir -p dist
           source_apk="$(find app/build/outputs/apk/continuous -name '*.apk' -type f | head -n 1)"
           test -n "$source_apk" && test -s "$source_apk"
-          cp "$source_apk" "dist/Flow_Play_Simple_Menu_0.29.1.apk"
-          unzip -tq "dist/Flow_Play_Simple_Menu_0.29.1.apk"
-          sha256sum "dist/Flow_Play_Simple_Menu_0.29.1.apk" | tee dist/SHA256SUMS.txt
+          cp "$source_apk" "dist/Flow_Play_YouTube_Only_Links_0.29.1.apk"
+          unzip -tq "dist/Flow_Play_YouTube_Only_Links_0.29.1.apk"
+          sha256sum "dist/Flow_Play_YouTube_Only_Links_0.29.1.apk" | tee dist/SHA256SUMS.txt
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Flow-Play-Simple-Menu-APK
+          name: Flow-Play-YouTube-Only-Links-APK
           path: |
-            dist/Flow_Play_Simple_Menu_0.29.1.apk
+            dist/Flow_Play_YouTube_Only_Links_0.29.1.apk
             dist/SHA256SUMS.txt
           if-no-files-found: error
           retention-days: 30
@@ -176,13 +201,13 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          tag="flow-play-simple-menu-0.29.1"
+          tag="flow-play-youtube-links-playlist-0.29.1"
           if gh release view "$tag" > /dev/null 2>&1; then
-            gh release upload "$tag" dist/Flow_Play_Simple_Menu_0.29.1.apk dist/SHA256SUMS.txt --clobber
+            gh release upload "$tag" dist/Flow_Play_YouTube_Only_Links_0.29.1.apk dist/SHA256SUMS.txt --clobber
           else
-            gh release create "$tag" dist/Flow_Play_Simple_Menu_0.29.1.apk dist/SHA256SUMS.txt \
+            gh release create "$tag" dist/Flow_Play_YouTube_Only_Links_0.29.1.apk dist/SHA256SUMS.txt \
               --target "$GITHUB_SHA" \
-              --title "Flow Play 0.29.1 - Simple Menu and Related Queue" \
-              --notes "Continuous related Up Next (phone and Android Auto) enabled by default, with a direct Import / Export shortcut opening Settings > Backup and restore, and all trending/optional discovery categories individually visible at the bottom of the drawer, plus a clean Flow Play-only branded header (no service selector): queue starts with up to four nonduplicate related tracks, adds more as it runs low, respects manual song selections and is not used for live streams. Preserves previous four-tab Flow Play home, 360p on mobile/Android Auto, clean toolbar, Related to Recent on car home, playlists and music search. Existing features: voice/parked search supports songs:, playlists:, channels:, videos:, my playlists: prefixes; Explore provides music/playlist/artist categories; supported hosts expose per-item Save to Car Saves and up to 3 existing playlist shortcuts. Related to Recent is based on NewPipe history. Car screen remains audio-only; Android Auto video not supported on most cars. New package identity means subscriptions/playlists require import. Adds now-playing Save to Car Saves button where head unit supports playback custom actions. Browse-save shortcuts also depend on car support. Not tested on physical head unit." \
+              --title "Flow Play 0.29.1 - YouTube Links and Unavailable Playlist Videos" \
+              --notes "Continuous related Up Next (phone and Android Auto) enabled by default, with YouTube-only supported app links, clear unavailability markings for deleted/private/confirmed inaccessible playlist videos and a two-step optional overlay permission guide, while preserving the direct Backup/Restore shortcut, uncluttered menu and Flow Play-only header: queue starts with up to four nonduplicate related tracks, adds more as it runs low, respects manual song selections and is not used for live streams. Preserves previous four-tab Flow Play home, 360p on mobile/Android Auto, clean toolbar, Related to Recent on car home, playlists and music search. Existing features: voice/parked search supports songs:, playlists:, channels:, videos:, my playlists: prefixes; Explore provides music/playlist/artist categories; supported hosts expose per-item Save to Car Saves and up to 3 existing playlist shortcuts. Related to Recent is based on NewPipe history. Car screen remains audio-only; Android Auto video not supported on most cars. New package identity means subscriptions/playlists require import. Adds now-playing Save to Car Saves button where head unit supports playback custom actions. Browse-save shortcuts also depend on car support. Not tested on physical head unit." \
               --prerelease
           fi

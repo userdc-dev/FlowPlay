@@ -1,9 +1,11 @@
 package org.schabi.newpipe.info_list.holder;
 
+import android.graphics.Color;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageView;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.core.content.ContextCompat;
 
@@ -15,12 +17,15 @@ import org.schabi.newpipe.info_list.InfoItemBuilder;
 import org.schabi.newpipe.ktx.ViewUtils;
 import org.schabi.newpipe.local.history.HistoryRecordManager;
 import org.schabi.newpipe.util.DependentPreferenceHelper;
+import org.schabi.newpipe.util.FlowPlayUnavailableStreams;
 import org.schabi.newpipe.util.Localization;
 import org.schabi.newpipe.util.StreamTypeUtil;
 import org.schabi.newpipe.util.image.CoilHelper;
 import org.schabi.newpipe.views.AnimatedProgressBar;
 
 import java.util.concurrent.TimeUnit;
+
+import coil3.util.CoilUtils;
 
 public class StreamMiniInfoItemHolder extends InfoItemHolder {
     public final ImageView itemThumbnailView;
@@ -54,6 +59,28 @@ public class StreamMiniInfoItemHolder extends InfoItemHolder {
 
         itemVideoTitleView.setText(item.getName());
         itemUploaderView.setText(item.getUploaderName());
+
+        // Show a clear unavailable state instead of a normal full thumbnail.
+        if (FlowPlayUnavailableStreams.isUnavailable(itemBuilder.getContext(),
+                item.getName(), item.getUrl())) {
+            CoilUtils.dispose(itemThumbnailView);
+            itemThumbnailView.setImageDrawable(null);
+            itemThumbnailView.setBackgroundColor(Color.DKGRAY);
+            itemVideoTitleView.setAlpha(0.6f);
+            itemUploaderView.setText(R.string.flowplay_unavailable);
+            itemDurationView.setText(R.string.flowplay_unavailable);
+            itemDurationView.setBackgroundColor(ContextCompat.getColor(itemBuilder.getContext(),
+                    R.color.duration_background_color));
+            itemDurationView.setVisibility(View.VISIBLE);
+            itemProgressView.setVisibility(View.GONE);
+            itemView.setOnClickListener(v -> Toast.makeText(itemBuilder.getContext(),
+                    R.string.flowplay_unavailable_message, Toast.LENGTH_SHORT).show());
+            disableLongClick();
+            return;
+        }
+        // Reset recycled holders after they previously displayed an unavailable row.
+        itemThumbnailView.setBackgroundColor(Color.TRANSPARENT);
+        itemVideoTitleView.setAlpha(1.0f);
 
         if (item.getDuration() > 0) {
             itemDurationView.setText(Localization.getDurationString(item.getDuration()));
