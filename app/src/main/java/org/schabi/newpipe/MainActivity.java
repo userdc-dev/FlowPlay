@@ -309,6 +309,10 @@ public class MainActivity extends AppCompatActivity {
         }
 
         //Settings and About
+        // Keep the main toolbar clean: audio routing lives in the left drawer.
+        drawerLayoutBinding.navigation.getMenu()
+                .add(R.id.menu_options_about_group, MENU_ID_AUDIO_OUTPUT, ORDER, "Audio output")
+                .setIcon(R.drawable.ic_music_note);
         drawerLayoutBinding.navigation.getMenu()
                 .add(R.id.menu_options_about_group, ITEM_ID_SETTINGS, ORDER, R.string.settings)
                 .setIcon(R.drawable.ic_settings);
@@ -387,6 +391,10 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void optionsAboutSelected(final MenuItem item) {
+        if (item.getItemId() == MENU_ID_AUDIO_OUTPUT) {
+            showPhoneAudioOutputSwitcher();
+            return;
+        }
         switch (item.getItemId()) {
             case ITEM_ID_SETTINGS:
                 NavigationHelper.openSettings(this);
@@ -728,12 +736,6 @@ public class MainActivity extends AppCompatActivity {
         }
         super.onCreateOptionsMenu(menu);
 
-        // Expose Android's actual audio routing UI on the phone.
-        // Android Auto can still enforce the car route while projection is active.
-        menu.add(Menu.NONE, MENU_ID_AUDIO_OUTPUT, 1000, "Audio output")
-                .setIcon(R.drawable.ic_music_note)
-                .setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER);
-
         final Fragment fragment =
                 getSupportFragmentManager().findFragmentById(R.id.fragment_holder);
         if (!(fragment instanceof SearchFragment)) {
@@ -754,11 +756,6 @@ public class MainActivity extends AppCompatActivity {
     public boolean onOptionsItemSelected(@NonNull final MenuItem item) {
         if (DEBUG) {
             Log.d(TAG, "onOptionsItemSelected() called with: item = [" + item + "]");
-        }
-
-        if (item.getItemId() == MENU_ID_AUDIO_OUTPUT) {
-            showPhoneAudioOutputSwitcher();
-            return true;
         }
 
         if (item.getItemId() == android.R.id.home) {
