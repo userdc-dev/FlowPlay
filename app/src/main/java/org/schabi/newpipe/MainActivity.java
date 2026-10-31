@@ -27,6 +27,7 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
+import android.media.MediaRouter2;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
@@ -120,6 +121,7 @@ public class MainActivity extends AppCompatActivity {
 
     private BroadcastReceiver broadcastReceiver;
 
+    private static final int MENU_ID_AUDIO_OUTPUT = 0x734c0001;
     private static final int ITEM_ID_SUBSCRIPTIONS = -1;
     private static final int ITEM_ID_FEED = -2;
     private static final int ITEM_ID_BOOKMARKS = -3;
@@ -726,6 +728,12 @@ public class MainActivity extends AppCompatActivity {
         }
         super.onCreateOptionsMenu(menu);
 
+        // Expose Android's actual audio routing UI on the phone.
+        // Android Auto can still enforce the car route while projection is active.
+        menu.add(Menu.NONE, MENU_ID_AUDIO_OUTPUT, 1000, "Audio output")
+                .setIcon(R.drawable.ic_music_note)
+                .setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER);
+
         final Fragment fragment =
                 getSupportFragmentManager().findFragmentById(R.id.fragment_holder);
         if (!(fragment instanceof SearchFragment)) {
@@ -748,11 +756,42 @@ public class MainActivity extends AppCompatActivity {
             Log.d(TAG, "onOptionsItemSelected() called with: item = [" + item + "]");
         }
 
+        if (item.getItemId() == MENU_ID_AUDIO_OUTPUT) {
+            showPhoneAudioOutputSwitcher();
+            return true;
+        }
+
         if (item.getItemId() == android.R.id.home) {
             onHomeButtonPressed();
             return true;
         }
         return super.onOptionsItemSelected(item);
+    }
+
+    /**
+     * Bring up the phone's real system media output selector rather than making
+     * a pretend in-app selector that cannot override Android Auto audio policy.
+     * On compatible devices the user can select phone, headphones or car.
+     */
+    private void showPhoneAudioOutputSwitcher() {
+        if (Build.VERSION.SDK_INT >= 34) {
+            try {
+                if (MediaRouter2.getInstance(this).showSystemOutputSwitcher()) {
+                    return;
+                }
+            } catch (final RuntimeException e) {
+                Log.w(TAG, "The system audio output switcher is unavailable", e);
+            }
+        }
+
+        new AlertDialog.Builder(this)
+                .setTitle("Audio output")
+                .setMessage("Android's output selector is unavailable right now. "
+                        + "You can try the output device button on the phone's media "
+                        + "notification. While connected, Android Auto may still "
+                        + "force media audio through the car.")
+                .setPositiveButton(android.R.string.ok, null)
+                .show();
     }
 
     /*//////////////////////////////////////////////////////////////////////////
