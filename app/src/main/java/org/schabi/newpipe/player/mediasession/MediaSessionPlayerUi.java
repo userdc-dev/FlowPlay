@@ -28,6 +28,7 @@ import org.schabi.newpipe.player.ui.PlayerUi;
 import org.schabi.newpipe.player.ui.VideoPlayerUi;
 import org.schabi.newpipe.util.StreamTypeUtil;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -48,6 +49,7 @@ public class MediaSessionPlayerUi extends PlayerUi
 
     // used to check whether any notification action changed, before sending costly updates
     private List<NotificationActionData> prevNotificationActions = List.of();
+    private boolean carSaveActionInstalled = false;
 
 
     public MediaSessionPlayerUi(@NonNull final Player player,
@@ -84,6 +86,7 @@ public class MediaSessionPlayerUi extends PlayerUi
 
         // force updating media session actions by resetting the previous ones
         prevNotificationActions = List.of();
+        carSaveActionInstalled = false;
         updateMediaSessionActions();
     }
 
@@ -96,6 +99,7 @@ public class MediaSessionPlayerUi extends PlayerUi
         sessionConnector.setQueueNavigator(null);
         mediaSession.setActive(false);
         prevNotificationActions = List.of();
+        carSaveActionInstalled = false;
     }
 
     @Override
@@ -210,12 +214,21 @@ public class MediaSessionPlayerUi extends PlayerUi
                 .collect(Collectors.toList());
 
         // avoid costly notification actions update, if nothing changed from last time
-        if (!newNotificationActions.equals(prevNotificationActions)) {
+        if (!newNotificationActions.equals(prevNotificationActions)
+                || !carSaveActionInstalled) {
             prevNotificationActions = newNotificationActions;
+            carSaveActionInstalled = true;
+
+            // Add a car-friendly Save action in addition to the user's two
+            // notification action slots. Android Auto may place it in overflow.
+            final List<MediaSessionConnector.CustomActionProvider> actionProviders =
+                    new ArrayList<>();
+            actionProviders.add(new CarSaveActionProvider(player, context));
+            newNotificationActions.stream()
+                    .map(data -> new SessionConnectorActionProvider(data, context))
+                    .forEach(actionProviders::add);
             sessionConnector.setCustomActionProviders(
-                    newNotificationActions.stream()
-                            .map(data -> new SessionConnectorActionProvider(data, context))
-                            .toArray(SessionConnectorActionProvider[]::new));
+                    actionProviders.toArray(new MediaSessionConnector.CustomActionProvider[0]));
         }
     }
 
