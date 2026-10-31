@@ -91,7 +91,7 @@ public class BackupRestoreSettingsFragment extends BasePreferenceFragment {
             NoFileManagerSafeGuard.launchSafe(
                     requestExportPathLauncher,
                     StoredFileHelper.getNewPicker(requireContext(),
-                            "NewPipeData-" + exportDateFormat.format(new Date()) + ".zip",
+                            "FlowPlayData-" + exportDateFormat.format(new Date()) + ".zip",
                             ZIP_MIME_TYPE, getImportExportDataUri()),
                     TAG,
                     getContext()
@@ -140,6 +140,36 @@ public class BackupRestoreSettingsFragment extends BasePreferenceFragment {
             return true;
         });
 
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        // Launch once from the ready fragment; don't launch again after returning from picker.
+        final Intent intent = requireActivity().getIntent();
+        final String action = intent.getStringExtra(SettingsActivity.EXTRA_FLOWPLAY_BACKUP_ACTION);
+        if (action == null) {
+            return;
+        }
+        intent.removeExtra(SettingsActivity.EXTRA_FLOWPLAY_BACKUP_ACTION);
+        final int preferenceKey;
+        switch (action) {
+            case SettingsActivity.FLOWPLAY_BACKUP_IMPORT:
+                preferenceKey = R.string.import_data;
+                break;
+            case SettingsActivity.FLOWPLAY_BACKUP_EXPORT:
+                preferenceKey = R.string.export_data;
+                break;
+            case SettingsActivity.FLOWPLAY_SUBSCRIPTIONS_IMPORT:
+                preferenceKey = R.string.import_subscriptions_key;
+                break;
+            case SettingsActivity.FLOWPLAY_SUBSCRIPTIONS_EXPORT:
+                preferenceKey = R.string.export_subscriptions_key;
+                break;
+            default:
+                return;
+        }
+        requirePreference(preferenceKey).performClick();
     }
 
     private void requestExportPathResult(final ActivityResult result) {

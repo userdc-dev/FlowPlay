@@ -68,6 +68,7 @@ import org.schabi.newpipe.databinding.InstanceSpinnerLayoutBinding;
 import org.schabi.newpipe.databinding.ToolbarLayoutBinding;
 import org.schabi.newpipe.error.ErrorUtil;
 import org.schabi.newpipe.extractor.NewPipe;
+import org.schabi.newpipe.extractor.ServiceList;
 import org.schabi.newpipe.extractor.StreamingService;
 import org.schabi.newpipe.extractor.comments.CommentsInfoItem;
 import org.schabi.newpipe.extractor.exceptions.ExtractionException;
@@ -82,6 +83,7 @@ import org.schabi.newpipe.player.Player;
 import org.schabi.newpipe.player.event.OnKeyDownListener;
 import org.schabi.newpipe.player.helper.PlayerHolder;
 import org.schabi.newpipe.player.playqueue.PlayQueue;
+import org.schabi.newpipe.settings.SettingsActivity;
 import org.schabi.newpipe.settings.UpdateSettingsFragment;
 import org.schabi.newpipe.settings.migration.MigrationManager;
 import org.schabi.newpipe.util.Constants;
@@ -96,7 +98,6 @@ import org.schabi.newpipe.util.SerializedCache;
 import org.schabi.newpipe.util.ServiceHelper;
 import org.schabi.newpipe.util.StateSaver;
 import org.schabi.newpipe.util.ThemeHelper;
-import org.schabi.newpipe.util.external_communication.ShareUtils;
 import org.schabi.newpipe.views.FocusOverlayView;
 
 import java.time.Instant;
@@ -118,18 +119,25 @@ public class MainActivity extends AppCompatActivity {
     private ActionBarDrawerToggle toggle;
 
     private boolean servicesShown = false;
+    private boolean transferExpanded = false;
+    private boolean moreExpanded = false;
 
     private BroadcastReceiver broadcastReceiver;
 
     private static final int MENU_ID_AUDIO_OUTPUT = 0x734c0001;
+    private static final int MENU_ID_TRANSFER = 0x734c0010;
+    private static final int MENU_ID_IMPORT_GOOGLE = 0x734c0011;
+    private static final int MENU_ID_IMPORT_BACKUP = 0x734c0012;
+    private static final int MENU_ID_IMPORT_SUBS = 0x734c0013;
+    private static final int MENU_ID_EXPORT_BACKUP = 0x734c0014;
+    private static final int MENU_ID_EXPORT_SUBS = 0x734c0015;
+    private static final int MENU_ID_MORE = 0x734c0020;
     private static final int ITEM_ID_SUBSCRIPTIONS = -1;
     private static final int ITEM_ID_FEED = -2;
     private static final int ITEM_ID_BOOKMARKS = -3;
     private static final int ITEM_ID_DOWNLOADS = -4;
     private static final int ITEM_ID_HISTORY = -5;
     private static final int ITEM_ID_SETTINGS = 0;
-    private static final int ITEM_ID_DONATION = 1;
-    private static final int ITEM_ID_ABOUT = 2;
 
     private static final int ORDER = 0;
     public static final String KEY_IS_IN_BACKGROUND = "is_in_background";
@@ -276,57 +284,81 @@ public class MainActivity extends AppCompatActivity {
      * @throws ExtractionException if the service didn't provide available kiosks
      */
     private void addDrawerMenuForCurrentService() throws ExtractionException {
-        //Tabs
-        drawerLayoutBinding.navigation.getMenu()
-                .add(R.id.menu_tabs_group, ITEM_ID_SUBSCRIPTIONS, ORDER,
-                        R.string.tab_subscriptions)
+        final Menu menu = drawerLayoutBinding.navigation.getMenu();
+        // Rebuild in the same order after every expansion/collapse.
+        menu.clear();
+        menu.add(R.id.menu_tabs_group, ITEM_ID_SUBSCRIPTIONS, ORDER, R.string.tab_subscriptions)
                 .setIcon(R.drawable.ic_tv);
-        drawerLayoutBinding.navigation.getMenu()
-                .add(R.id.menu_tabs_group, ITEM_ID_FEED, ORDER, R.string.fragment_feed_title)
+        menu.add(R.id.menu_tabs_group, ITEM_ID_FEED, ORDER, R.string.fragment_feed_title)
                 .setIcon(R.drawable.ic_subscriptions);
-        drawerLayoutBinding.navigation.getMenu()
-                .add(R.id.menu_tabs_group, ITEM_ID_BOOKMARKS, ORDER, R.string.tab_bookmarks)
+        menu.add(R.id.menu_tabs_group, ITEM_ID_BOOKMARKS, ORDER, R.string.tab_bookmarks)
                 .setIcon(R.drawable.ic_bookmark);
-        drawerLayoutBinding.navigation.getMenu()
-                .add(R.id.menu_tabs_group, ITEM_ID_DOWNLOADS, ORDER, R.string.downloads)
+        menu.add(R.id.menu_tabs_group, ITEM_ID_DOWNLOADS, ORDER, R.string.downloads)
                 .setIcon(R.drawable.ic_file_download);
-        drawerLayoutBinding.navigation.getMenu()
-                .add(R.id.menu_tabs_group, ITEM_ID_HISTORY, ORDER, R.string.action_history)
+        menu.add(R.id.menu_tabs_group, ITEM_ID_HISTORY, ORDER, R.string.action_history)
                 .setIcon(R.drawable.ic_history);
 
-        //Kiosks
-        final int currentServiceId = ServiceHelper.getSelectedServiceId(this);
-        final StreamingService service = NewPipe.getService(currentServiceId);
-
-        int kioskMenuItemId = 0;
-
-        for (final String ks : service.getKioskList().getAvailableKiosks()) {
-            drawerLayoutBinding.navigation.getMenu()
-                    .add(R.id.menu_kiosks_group, kioskMenuItemId, 0, KioskTranslator
-                            .getTranslatedKioskName(ks, this))
-                    .setIcon(KioskTranslator.getKioskIcon(ks));
-            kioskMenuItemId++;
+        menu.add(R.id.menu_transfer_group, MENU_ID_TRANSFER, ORDER,
+                        R.string.flowplay_data_transfer)
+                .setIcon(R.drawable.ic_settings_backup_restore);
+        if (transferExpanded) {
+            menu.add(R.id.menu_transfer_actions_group, MENU_ID_IMPORT_GOOGLE, ORDER,
+                            R.string.flowplay_import_google)
+                    .setIcon(R.drawable.ic_subscriptions);
+            menu.add(R.id.menu_transfer_actions_group, MENU_ID_IMPORT_BACKUP, ORDER,
+                            R.string.flowplay_import_backup)
+                    .setIcon(R.drawable.ic_settings_backup_restore);
+            menu.add(R.id.menu_transfer_actions_group, MENU_ID_IMPORT_SUBS, ORDER,
+                            R.string.flowplay_import_subscriptions)
+                    .setIcon(R.drawable.ic_subscriptions);
+            menu.add(R.id.menu_transfer_actions_group, MENU_ID_EXPORT_BACKUP, ORDER,
+                            R.string.flowplay_export_backup)
+                    .setIcon(R.drawable.ic_file_download);
+            menu.add(R.id.menu_transfer_actions_group, MENU_ID_EXPORT_SUBS, ORDER,
+                            R.string.flowplay_export_subscriptions)
+                    .setIcon(R.drawable.ic_file_download);
         }
 
-        //Settings and About
-        // Keep the main toolbar clean: audio routing lives in the left drawer.
-        drawerLayoutBinding.navigation.getMenu()
-                .add(R.id.menu_options_about_group, MENU_ID_AUDIO_OUTPUT, ORDER, "Audio output")
+        // All service kiosks (trending, gaming, music, movies, podcasts and live)
+        // belong in More. They are not present in the drawer until it is expanded.
+        menu.add(R.id.menu_more_group, MENU_ID_MORE, ORDER, R.string.flowplay_more_menu)
+                .setIcon(R.drawable.ic_list);
+        if (moreExpanded) {
+            final StreamingService service = NewPipe.getService(
+                    ServiceHelper.getSelectedServiceId(this));
+            int kioskMenuItemId = 0;
+            for (final String kiosk : service.getKioskList().getAvailableKiosks()) {
+                menu.add(R.id.menu_kiosks_group, kioskMenuItemId, ORDER,
+                                KioskTranslator.getTranslatedKioskName(kiosk, this))
+                        .setIcon(KioskTranslator.getKioskIcon(kiosk));
+                kioskMenuItemId++;
+            }
+        }
+
+        menu.add(R.id.menu_options_about_group, MENU_ID_AUDIO_OUTPUT, ORDER,
+                        R.string.flowplay_audio_output)
                 .setIcon(R.drawable.ic_music_note);
-        drawerLayoutBinding.navigation.getMenu()
-                .add(R.id.menu_options_about_group, ITEM_ID_SETTINGS, ORDER, R.string.settings)
+        menu.add(R.id.menu_options_about_group, ITEM_ID_SETTINGS, ORDER, R.string.settings)
                 .setIcon(R.drawable.ic_settings);
-        drawerLayoutBinding.navigation.getMenu()
-                .add(R.id.menu_options_about_group, ITEM_ID_DONATION, ORDER,
-                        R.string.donation_title)
-                .setIcon(R.drawable.volunteer_activism_ic);
-        drawerLayoutBinding.navigation.getMenu()
-                .add(R.id.menu_options_about_group, ITEM_ID_ABOUT, ORDER, R.string.tab_about)
-                .setIcon(R.drawable.ic_info_outline);
+        // Donate, About and FAQ are intentionally excluded from the drawer.
     }
 
     private boolean drawerItemSelected(final MenuItem item) {
         final int groupId = item.getGroupId();
+        if (groupId == R.id.menu_transfer_group || groupId == R.id.menu_more_group) {
+            if (groupId == R.id.menu_transfer_group) {
+                transferExpanded = !transferExpanded;
+            } else {
+                moreExpanded = !moreExpanded;
+            }
+            try {
+                addDrawerMenuForCurrentService();
+            } catch (final ExtractionException e) {
+                ErrorUtil.showUiErrorSnackbar(this, "Expanding FlowPlay navigation", e);
+            }
+            return true; // Keep the drawer open while choosing a nested option.
+        }
+
         if (groupId == R.id.menu_services_group) {
             changeService(item);
         } else if (groupId == R.id.menu_tabs_group) {
@@ -337,6 +369,8 @@ public class MainActivity extends AppCompatActivity {
             } catch (final Exception e) {
                 ErrorUtil.showUiErrorSnackbar(this, "Selecting drawer kiosk", e);
             }
+        } else if (groupId == R.id.menu_transfer_actions_group) {
+            flowPlayTransferSelected(item);
         } else if (groupId == R.id.menu_options_about_group) {
             optionsAboutSelected(item);
         } else {
@@ -345,6 +379,36 @@ public class MainActivity extends AppCompatActivity {
 
         mainBinding.getRoot().closeDrawers();
         return true;
+    }
+
+    private void flowPlayTransferSelected(final MenuItem item) {
+        switch (item.getItemId()) {
+            case MENU_ID_IMPORT_GOOGLE:
+                // Use the existing YouTube extractor to read Google Takeout ZIP/CSV files.
+                NavigationHelper.openSubscriptionsImportFragment(getSupportFragmentManager(),
+                        ServiceList.YouTube.getServiceId());
+                break;
+            case MENU_ID_IMPORT_BACKUP:
+                openFlowPlayBackupAction(SettingsActivity.FLOWPLAY_BACKUP_IMPORT);
+                break;
+            case MENU_ID_IMPORT_SUBS:
+                openFlowPlayBackupAction(SettingsActivity.FLOWPLAY_SUBSCRIPTIONS_IMPORT);
+                break;
+            case MENU_ID_EXPORT_BACKUP:
+                openFlowPlayBackupAction(SettingsActivity.FLOWPLAY_BACKUP_EXPORT);
+                break;
+            case MENU_ID_EXPORT_SUBS:
+                openFlowPlayBackupAction(SettingsActivity.FLOWPLAY_SUBSCRIPTIONS_EXPORT);
+                break;
+            default:
+                break;
+        }
+    }
+
+    private void openFlowPlayBackupAction(final String action) {
+        final Intent intent = new Intent(this, SettingsActivity.class);
+        intent.putExtra(SettingsActivity.EXTRA_FLOWPLAY_BACKUP_ACTION, action);
+        startActivity(intent);
     }
 
     private void changeService(final MenuItem item) {
@@ -393,18 +457,8 @@ public class MainActivity extends AppCompatActivity {
     private void optionsAboutSelected(final MenuItem item) {
         if (item.getItemId() == MENU_ID_AUDIO_OUTPUT) {
             showPhoneAudioOutputSwitcher();
-            return;
-        }
-        switch (item.getItemId()) {
-            case ITEM_ID_SETTINGS:
-                NavigationHelper.openSettings(this);
-                break;
-            case ITEM_ID_DONATION:
-                ShareUtils.openUrlInBrowser(this, getString(R.string.donation_url));
-                break;
-            case ITEM_ID_ABOUT:
-                NavigationHelper.openAbout(this);
-                break;
+        } else if (item.getItemId() == ITEM_ID_SETTINGS) {
+            NavigationHelper.openSettings(this);
         }
     }
 
@@ -429,10 +483,7 @@ public class MainActivity extends AppCompatActivity {
     private void toggleServices() {
         servicesShown = !servicesShown;
 
-        drawerLayoutBinding.navigation.getMenu().removeGroup(R.id.menu_services_group);
-        drawerLayoutBinding.navigation.getMenu().removeGroup(R.id.menu_tabs_group);
-        drawerLayoutBinding.navigation.getMenu().removeGroup(R.id.menu_kiosks_group);
-        drawerLayoutBinding.navigation.getMenu().removeGroup(R.id.menu_options_about_group);
+        drawerLayoutBinding.navigation.getMenu().clear();
 
         // Show up or down arrow
         drawerHeaderBinding.drawerArrow.setImageResource(

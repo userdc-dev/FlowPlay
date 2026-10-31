@@ -20,6 +20,14 @@
     <string name="search_with_service_name">Search %1$s</string>
     <string name="search_with_service_name_and_filter">Search %1$s (%2$s)</string>
     <string name="settings">Settings</string>
+    <string name="flowplay_data_transfer">Import / Export</string>
+    <string name="flowplay_import_google">    Import YouTube (Google Takeout)</string>
+    <string name="flowplay_import_backup">    Import FlowPlay / NewPipe backup</string>
+    <string name="flowplay_import_subscriptions">    Import subscriptions (JSON)</string>
+    <string name="flowplay_export_backup">    Export FlowPlay backup</string>
+    <string name="flowplay_export_subscriptions">    Export subscriptions (JSON)</string>
+    <string name="flowplay_more_menu">More / Explore</string>
+    <string name="flowplay_audio_output">Audio output</string>
     <string name="did_you_mean">Did you mean \"%1$s\"?</string>
     <string name="search_showing_result_for">Showing results for: %s</string>
     <string name="share_dialog_title">Share with</string>

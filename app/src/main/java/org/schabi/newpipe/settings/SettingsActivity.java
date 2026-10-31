@@ -66,6 +66,12 @@ public class SettingsActivity extends AppCompatActivity implements
         PreferenceFragmentCompat.OnPreferenceStartFragmentCallback,
         PreferenceSearchResultListener {
     private static final String TAG = "SettingsActivity";
+    public static final String EXTRA_FLOWPLAY_BACKUP_ACTION =
+            "org.schabi.newpipe.extra.FLOWPLAY_BACKUP_ACTION";
+    public static final String FLOWPLAY_BACKUP_IMPORT = "backup_import";
+    public static final String FLOWPLAY_BACKUP_EXPORT = "backup_export";
+    public static final String FLOWPLAY_SUBSCRIPTIONS_IMPORT = "subscriptions_import";
+    public static final String FLOWPLAY_SUBSCRIPTIONS_EXPORT = "subscriptions_export";
     private static final boolean DEBUG = MainActivity.DEBUG;
 
     @IdRes
@@ -109,8 +115,12 @@ public class SettingsActivity extends AppCompatActivity implements
                 }
             }
         } else {
+            // A drawer import/export shortcut opens the matching settings page directly.
+            final boolean openBackup = getIntent().hasExtra(EXTRA_FLOWPLAY_BACKUP_ACTION);
             getSupportFragmentManager().beginTransaction()
-                    .replace(R.id.settings_fragment_holder, new MainSettingsFragment())
+                    .replace(R.id.settings_fragment_holder,
+                            openBackup ? new BackupRestoreSettingsFragment()
+                                    : new MainSettingsFragment())
                     .commit();
         }
 
