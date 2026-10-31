@@ -1,0 +1,168 @@
+name: Build Flow Play Continuous Related Queue APK
+
+on:
+  push:
+    branches:
+      - flowplay-continuous-related-queue
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  android-apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout FlowPlay source
+        uses: actions/checkout@v4
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Recolour launcher icons for all Android versions
+        run: |
+          python3 -m pip install --user Pillow
+          python3 scripts/recolor_launcher.py
+
+      - name: Install Android SDK command-line tools and Android 37
+        shell: bash
+        run: |
+          set -euo pipefail
+          export ANDROID_HOME="$RUNNER_TEMP/flowplay-android-sdk"
+          export ANDROID_SDK_ROOT="$ANDROID_HOME"
+          echo "ANDROID_HOME=$ANDROID_HOME" >> "$GITHUB_ENV"
+          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT" >> "$GITHUB_ENV"
+          mkdir -p "$ANDROID_HOME/cmdline-tools"
+          curl --fail --location --retry 3 --silent --show-error \
+            "https://dl.google.com/android/repository/commandlinetools-linux-15859902_latest.zip" \
+            -o "$RUNNER_TEMP/commandlinetools.zip"
+          echo "4e4c464f145a7512b57d088ac6c278c03c9eea610886b35a5e0804e74eedf583  $RUNNER_TEMP/commandlinetools.zip" | sha256sum --check
+          unzip -q "$RUNNER_TEMP/commandlinetools.zip" -d "$RUNNER_TEMP/flowplay-cli"
+          mv "$RUNNER_TEMP/flowplay-cli/cmdline-tools" "$ANDROID_HOME/cmdline-tools/latest"
+          sdkmanager="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          yes | "$sdkmanager" --sdk_root="$ANDROID_HOME" --licenses > /dev/null || true
+          "$sdkmanager" --sdk_root="$ANDROID_HOME" --install "platforms;android-37.0" "build-tools;36.0.0" "platform-tools"
+
+      - name: Verify Android Auto browse source
+        shell: bash
+        run: |
+          set -euo pipefail
+          src="app/src/main/java/org/schabi/newpipe/player/mediabrowser/MediaBrowserImpl.kt"
+          grep -q 'FeedDatabaseManager(context).getStreams' "$src"
+          grep -q 'ID_SUBSCRIPTIONS ->' "$src"
+          grep -q 'ID_TRENDING ->' "$src"
+          grep -q 'populateSubscriptionStreams' "$src"
+          grep -q 'ID_DISCOVER, ID_DISCOVER_MIXED ->' "$src"
+          echo "Home, subscriptions and discover handlers confirmed"
+
+      - name: Verify Android Auto search and playlist actions
+        shell: bash
+        run: |
+          set -euo pipefail
+          src="app/src/main/java/org/schabi/newpipe/player/mediabrowser/MediaBrowserImpl.kt"
+          service="app/src/main/java/org/schabi/newpipe/player/PlayerService.java"
+          grep -q 'private fun searchForCar' "$src"
+          grep -q 'CAR_SAVE_ACTION' "$src"
+          grep -q 'appendToPlaylist' "$src"
+          grep -q 'createPlaylist' "$src"
+          grep -q 'BROWSER_SERVICE_EXTRAS_KEY_CUSTOM_BROWSER_ACTION_ROOT_LIST' "$src"
+          grep -q 'Related to Recent' "$src"
+          grep -q 'mediaBrowserImpl.onCustomAction' "$service"
+          grep -q 'CarSaveActionProvider' app/src/main/java/org/schabi/newpipe/player/mediasession/MediaSessionPlayerUi.java
+          echo "Search filters, car playlist saves and recommendations verified"
+
+      - name: Verify Android native audio output menu
+        shell: bash
+        run: |
+          set -euo pipefail
+          file="app/src/main/java/org/schabi/newpipe/MainActivity.java"
+          grep -q 'MENU_ID_AUDIO_OUTPUT' "$file"
+          grep -q 'MediaRouter2.getInstance(this).showSystemOutputSwitcher()' "$file"
+          grep -q 'showPhoneAudioOutputSwitcher()' "$file"
+          echo "Android native output picker menu and fallback verified"
+
+      - name: Verify Flow Play four-tab UI and mobile data saver
+        shell: bash
+        run: |
+          set -euo pipefail
+          tabs="app/src/main/java/org/schabi/newpipe/settings/tabs/TabsJsonHelper.java"
+          browser="app/src/main/java/org/schabi/newpipe/player/mediabrowser/MediaBrowserImpl.kt"
+          data="app/src/main/java/org/schabi/newpipe/util/ListHelper.java"
+          grep -q 'Tab.Type.LIVE.getTab()' "$tabs"
+          grep -q 'Tab.Type.FEED.getTab()' "$tabs"
+          grep -q 'Related to Recent' "$browser"
+          grep -q '"PLAYLISTS"' "$browser"
+          grep -q '"Explore music & playlists"' "$browser"
+          grep -q 'CarConnectionTracker.isRecentlyConnected()' "$data"
+          grep -q 'NET_CAPABILITY_VALIDATED' "$data"
+          grep -q 'limit_mobile_data_usage_value">360p' app/src/main/res/values/settings_keys.xml
+          grep -q 'flowplay_android_auto_low_quality_key' app/src/main/res/xml/video_audio_settings.xml
+          test "$(grep -c 'android:visible="false"' app/src/main/res/menu/menu_feed_fragment.xml)" = 2
+          echo "Default feed bottom tabs, clean top bar and 360p data-saver verified"
+
+      - name: Verify continuous autoplay queue logic
+        shell: bash
+        run: |
+          set -euo pipefail
+          player="app/src/main/java/org/schabi/newpipe/player/Player.java"
+          helper="app/src/main/java/org/schabi/newpipe/player/helper/PlayerHelper.java"
+          queue="app/src/main/java/org/schabi/newpipe/player/playqueue/PlayQueue.java"
+          prefs="app/src/main/res/xml/video_audio_settings.xml"
+          grep -q 'nextCount > 2' "$player"
+          grep -q 'autoQueue.getStreams()' "$player"
+          grep -q 'new SinglePlayQueue(nextItems, 0)' "$helper"
+          grep -q 'nextItems.size() == 4' "$helper"
+          grep -q 'item.setAutoQueued(true)' "$helper"
+          grep -q 'remove(streams.size() - 1)' "$queue"
+          grep -q 'flowplay_related_queue_migrated_v1' app/src/main/java/org/schabi/newpipe/App.kt
+          grep -A1 'android:defaultValue="true"' "$prefs" | grep -q 'auto_queue_key'
+          grep -q 'setQueue(queue)' app/src/main/java/org/schabi/newpipe/player/mediasession/PlayQueueNavigator.java
+          echo "Continuous related playback, user queue priority and Android Auto media queue verified"
+
+      - name: Build signed debug-key Continuous APK
+        run: |
+          chmod +x gradlew
+          ./gradlew :app:assembleContinuous --no-daemon --stacktrace
+
+      - name: Verify APK and name downloadable file
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          source_apk="$(find app/build/outputs/apk/continuous -name '*.apk' -type f | head -n 1)"
+          test -n "$source_apk" && test -s "$source_apk"
+          cp "$source_apk" "dist/Flow_Play_Continuous_Queue_0.29.1.apk"
+          unzip -tq "dist/Flow_Play_Continuous_Queue_0.29.1.apk"
+          sha256sum "dist/Flow_Play_Continuous_Queue_0.29.1.apk" | tee dist/SHA256SUMS.txt
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Flow-Play-Continuous-Queue-APK
+          path: |
+            dist/Flow_Play_Continuous_Queue_0.29.1.apk
+            dist/SHA256SUMS.txt
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Publish direct-download GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag="flow-play-continuous-queue-0.29.1"
+          if gh release view "$tag" > /dev/null 2>&1; then
+            gh release upload "$tag" dist/Flow_Play_Continuous_Queue_0.29.1.apk dist/SHA256SUMS.txt --clobber
+          else
+            gh release create "$tag" dist/Flow_Play_Continuous_Queue_0.29.1.apk dist/SHA256SUMS.txt \
+              --target "$GITHUB_SHA" \
+              --title "Flow Play 0.29.1 - Continuous Related Up Next" \
+              --notes "Continuous related Up Next (phone and Android Auto) enabled by default: queue starts with up to four nonduplicate related tracks, adds more as it runs low, respects manual song selections and is not used for live streams. Preserves previous four-tab Flow Play home, 360p on mobile/Android Auto, clean toolbar, Related to Recent on car home, playlists and music search. Existing features: voice/parked search supports songs:, playlists:, channels:, videos:, my playlists: prefixes; Explore provides music/playlist/artist categories; supported hosts expose per-item Save to Car Saves and up to 3 existing playlist shortcuts. Related to Recent is based on NewPipe history. Car screen remains audio-only; Android Auto video not supported on most cars. New package identity means subscriptions/playlists require import. Adds now-playing Save to Car Saves button where head unit supports playback custom actions. Browse-save shortcuts also depend on car support. Not tested on physical head unit." \
+              --prerelease
+          fi
