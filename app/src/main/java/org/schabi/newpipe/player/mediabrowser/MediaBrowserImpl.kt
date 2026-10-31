@@ -25,6 +25,7 @@ import org.schabi.newpipe.database.history.model.StreamHistoryEntry
 import org.schabi.newpipe.database.playlist.PlaylistLocalItem
 import org.schabi.newpipe.database.playlist.PlaylistStreamEntry
 import org.schabi.newpipe.database.playlist.model.PlaylistRemoteEntity
+import org.schabi.newpipe.extractor.NewPipe
 import org.schabi.newpipe.extractor.InfoItem
 import org.schabi.newpipe.extractor.InfoItem.InfoType
 import org.schabi.newpipe.extractor.channel.ChannelInfoItem
@@ -32,9 +33,12 @@ import org.schabi.newpipe.extractor.exceptions.ContentNotAvailableException
 import org.schabi.newpipe.extractor.playlist.PlaylistInfoItem
 import org.schabi.newpipe.extractor.search.SearchInfo
 import org.schabi.newpipe.extractor.stream.StreamInfoItem
+import org.schabi.newpipe.local.subscription.SubscriptionManager
+import org.schabi.newpipe.database.subscription.SubscriptionEntity
 import org.schabi.newpipe.local.bookmark.MergedPlaylistManager
 import org.schabi.newpipe.local.playlist.LocalPlaylistManager
 import org.schabi.newpipe.local.playlist.RemotePlaylistManager
+import org.schabi.newpipe.util.ChannelTabHelper
 import org.schabi.newpipe.util.ExtractorHelper
 import org.schabi.newpipe.util.ServiceHelper
 import org.schabi.newpipe.util.image.ImageStrategy
@@ -139,6 +143,16 @@ class MediaBrowserImpl(
                 return Single.just(
                     listOf(
                         createRootMediaItem(
+                            ID_WHATS_NEW,
+                            "What's New",
+                            R.drawable.ic_whatshot
+                        ),
+                        createRootMediaItem(
+                            ID_SUBSCRIPTIONS,
+                            "Subscriptions",
+                            R.drawable.ic_subscriptions
+                        ),
+                        createRootMediaItem(
                             ID_DISCOVER,
                             "Explore music",
                             R.drawable.ic_music_note
@@ -158,6 +172,22 @@ class MediaBrowserImpl(
             }
 
             when (path.removeAt(0)) {
+                ID_WHATS_NEW -> {
+                    if (path.isEmpty()) return populateWhatsNew()
+                    throw parseError(parentId)
+                }
+
+                ID_SUBSCRIPTIONS -> {
+                    if (path.isEmpty()) return populateSubscriptions()
+                    if (path.size == 1) {
+                        val subscriptionId = path[0].toLongOrNull()
+                        if (subscriptionId != null) {
+                            return populateSubscriptionStreams(subscriptionId)
+                        }
+                    }
+                    throw parseError(parentId)
+                }
+
                 ID_DISCOVER -> {
                     if (path.isEmpty()) {
                         return Single.just(discoveryCategories.mapIndexed { index, category ->
@@ -355,6 +385,70 @@ class MediaBrowserImpl(
 
     private fun createMediaIdForInfoItem(item: InfoItem): String {
         return buildInfoItemMediaId(item).build().toString()
+    }
+
+    // Flow Play's actual "What's New" / selected-service kiosk.
+    // Android Auto presents the results as playable audio, not video.
+    private fun populateWhatsNew(): Single<List<MediaBrowserCompat.MediaItem>> {
+        val serviceId = ServiceHelper.getSelectedServiceId(context)
+        return Single.fromCallable {
+            val kiosks = NewPipe.getService(serviceId).kioskList
+            val kioskId = kiosks.defaultKioskId
+            kiosks.getListLinkHandlerFactoryByType(kioskId).fromId(kioskId).url
+        }.flatMap { kioskUrl ->
+            ExtractorHelper.getKioskInfo(serviceId, kioskUrl, false)
+        }.subscribeOn(Schedulers.io())
+            .map { kiosk ->
+                kiosk.relatedItems.take(50).mapNotNull(this::createInfoItemMediaItem)
+            }
+    }
+
+    // Reads subscriptions from the current Flow Play installation's database.
+    private fun populateSubscriptions(): Single<List<MediaBrowserCompat.MediaItem>> {
+        return SubscriptionManager(context).subscriptions().firstOrError()
+            .map { subscriptions ->
+                subscriptions.mapNotNull(this::createSubscriptionMediaItem)
+            }
+            .subscribeOn(Schedulers.io())
+    }
+
+    private fun createSubscriptionMediaItem(
+        subscription: SubscriptionEntity
+    ): MediaBrowserCompat.MediaItem? {
+        if (subscription.url.isNullOrBlank()) return null
+        val description = MediaDescriptionCompat.Builder()
+            .setMediaId("$ID_SUBSCRIPTIONS/${subscription.uid}")
+            .setTitle(subscription.name ?: "Subscribed channel")
+            .setIconUri(imageUriOrNullIfDisabled(subscription.avatarUrl))
+            .build()
+        return MediaBrowserCompat.MediaItem(
+            description,
+            MediaBrowserCompat.MediaItem.FLAG_BROWSABLE
+        )
+    }
+
+    private fun populateSubscriptionStreams(
+        subscriptionId: Long
+    ): Single<List<MediaBrowserCompat.MediaItem>> {
+        return Single.fromCallable {
+            database.subscriptionDAO().getSubscription(subscriptionId)
+        }.subscribeOn(Schedulers.io())
+            .flatMap { channel ->
+                val url = channel.url
+                    ?: throw ContentNotAvailableException("Subscription has no URL")
+                ExtractorHelper.getChannelInfo(channel.serviceId, url, false)
+            }
+            .flatMap { channelInfo ->
+                val streamsTab = channelInfo.tabs.firstOrNull {
+                    ChannelTabHelper.isStreamsTab(it)
+                } ?: return@flatMap Single.just(emptyList<MediaBrowserCompat.MediaItem>())
+                ExtractorHelper.getChannelTab(channelInfo.serviceId, streamsTab, false)
+                    .map { tab ->
+                        tab.relatedItems.filterIsInstance<StreamInfoItem>()
+                            .take(40)
+                            .mapNotNull(this::createInfoItemMediaItem)
+                    }
+            }
     }
 
     private fun populateHistory(): Single<List<MediaBrowserCompat.MediaItem>> {
