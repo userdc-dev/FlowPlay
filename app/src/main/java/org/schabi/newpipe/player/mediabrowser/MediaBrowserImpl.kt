@@ -670,11 +670,11 @@ class MediaBrowserImpl(
                             saved.find { "$CAR_SAVE_TO_PLAYLIST_PREFIX${it.uid}" == action }
                         }
                         if (chosen != null) {
-                            playlists.appendToPlaylist(chosen.uid, listOf(stream)).firstOrError()
+                            playlists.appendToPlaylist(chosen.uid, listOf(stream)).toSingle()
                                 .map { "Saved to ${chosen.orderingName}" }
                         } else if (action == CAR_SAVE_ACTION) {
                             playlists.createPlaylist(carSavesPlaylistName, listOf(stream))
-                                .firstOrError()
+                                .toSingle()
                                 .map { "Saved to Car Saves" }
                         } else {
                             Single.error<String>(IllegalArgumentException("Playlist unavailable"))
@@ -724,12 +724,13 @@ class MediaBrowserImpl(
         disposables.add(
             ExtractorHelper.getStreamInfo(serviceId, url, false)
                 .subscribeOn(Schedulers.io())
-                .map { info ->
+                .map<MediaBrowserCompat.MediaItem> { info ->
                     val stream = StreamInfoItem(
                         info.serviceId, info.url, info.name, info.streamType
                     )
                     stream.uploaderName = info.uploaderName
                     createInfoItemMediaItem(stream)
+                        ?: throw IllegalStateException("Unable to create refreshed item")
                 }
                 .subscribe(
                     { result.sendResult(it) },
