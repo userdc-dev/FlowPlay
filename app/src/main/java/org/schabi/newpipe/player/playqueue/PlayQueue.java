@@ -275,18 +275,27 @@ public abstract class PlayQueue implements Serializable {
      * @param items {@link PlayQueueItem}s to append
      */
     public synchronized void append(@NonNull final List<PlayQueueItem> items) {
+        if (items.isEmpty()) {
+            return;
+        }
         final List<PlayQueueItem> itemList = new ArrayList<>(items);
+
+        if (!itemList.get(0).isAutoQueued()) {
+            // A manually queued item takes priority over recommendations.
+            // Remove only unplayed suggested tracks, never the active item.
+            // remove() updates shuffled backups and notifies media-session
+            // consumers so Android Auto does not show stale queue entries.
+            while (streams.size() - 1 > getIndex()
+                    && streams.get(streams.size() - 1).isAutoQueued()) {
+                remove(streams.size() - 1);
+            }
+        }
 
         if (isShuffled()) {
             backup.addAll(itemList);
             Collections.shuffle(itemList);
         }
-        if (!streams.isEmpty() && streams.get(streams.size() - 1).isAutoQueued()
-                && !itemList.get(0).isAutoQueued()) {
-            streams.remove(streams.size() - 1);
-        }
         streams.addAll(itemList);
-
         broadcast(new AppendEvent(itemList.size()));
     }
 

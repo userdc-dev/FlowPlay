@@ -1978,15 +1978,22 @@ public final class Player implements PlaybackListener, Listener {
     //region Play queue, segments and streams
 
     private void maybeAutoQueueNextStream(@NonNull final StreamInfo info) {
-        if (playQueue == null || playQueue.getIndex() != playQueue.size() - 1
-                || getRepeatMode() != REPEAT_MODE_OFF
-                || !PlayerHelper.isAutoQueueEnabled(context)) {
+        if (playQueue == null || getRepeatMode() != REPEAT_MODE_OFF
+                || !PlayerHelper.isAutoQueueEnabled(context)
+                || StreamTypeUtil.isLiveStream(info.getStreamType())) {
             return;
         }
-        // auto queue when starting playback on the last item when not repeating
-        final PlayQueue autoQueue = PlayerHelper.autoQueueOf(info,
-                playQueue.getStreams());
-        if (autoQueue != null) {
+
+        // Keep a small Up Next buffer (two tracks ahead is the refill trigger)
+        // for Android Auto and the ordinary phone player alike. Do not append
+        // suggestions while several manually queued entries are waiting.
+        final int nextCount = playQueue.size() - playQueue.getIndex() - 1;
+        if (nextCount > 2) {
+            return;
+        }
+
+        final PlayQueue autoQueue = PlayerHelper.autoQueueOf(info, playQueue.getStreams());
+        if (autoQueue != null && !autoQueue.getStreams().isEmpty()) {
             playQueue.append(autoQueue.getStreams());
         }
     }

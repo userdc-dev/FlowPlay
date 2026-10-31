@@ -96,6 +96,17 @@ open class App :
         // Initialize settings first because other initializations can use its values
         NewPipeSettings.initSettings(this)
 
+        // Flow Play defaults to continuous related playback. Older test builds
+        // inherited NewPipe's disabled setting; migrate once, while retaining
+        // the user's ability to turn Auto-enqueue off afterwards.
+        val queuePrefs = PreferenceManager.getDefaultSharedPreferences(this)
+        if (!queuePrefs.getBoolean("flowplay_related_queue_migrated_v1", false)) {
+            queuePrefs.edit()
+                .putBoolean(getString(R.string.auto_queue_key), true)
+                .putBoolean("flowplay_related_queue_migrated_v1", true)
+                .apply()
+        }
+
         // One-time migration for older Flow Play installs which inherited
         // NewPipe's "no limit on mobile data" preference.
         val resolutionPrefs = PreferenceManager.getDefaultSharedPreferences(this)

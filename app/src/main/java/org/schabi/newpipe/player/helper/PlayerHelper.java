@@ -174,33 +174,49 @@ public final class PlayerHelper {
      * @param existingItems existing items in the queue
      * @return {@link SinglePlayQueue} with the next stream to queue
      */
+    /**
+     * Pick a small buffer of related streams, retaining extractor recommendation
+     * order and avoiding URLs already in the current playback queue.
+     * Keeping multiple items visible means Android Auto has real Up Next entries
+     * instead of showing an empty list while a single stream is playing.
+     */
     @Nullable
     public static PlayQueue autoQueueOf(@NonNull final StreamInfo info,
                                         @NonNull final List<PlayQueueItem> existingItems) {
-        final Set<String> urls = existingItems.stream()
+        final Set<String> seenUrls = existingItems.stream()
                 .map(PlayQueueItem::getUrl)
-                .collect(Collectors.toUnmodifiableSet());
+                .collect(Collectors.toSet());
 
         final List<InfoItem> relatedItems = info.getRelatedItems();
         if (Utils.isNullOrEmpty(relatedItems)) {
             return null;
         }
 
-        if (relatedItems.get(0) instanceof StreamInfoItem
-                && !urls.contains(relatedItems.get(0).getUrl())) {
-            return getAutoQueuedSinglePlayQueue((StreamInfoItem) relatedItems.get(0));
-        }
-
-        final List<StreamInfoItem> autoQueueItems = new ArrayList<>();
-        for (final InfoItem item : relatedItems) {
-            if (item instanceof StreamInfoItem && !urls.contains(item.getUrl())) {
-                autoQueueItems.add((StreamInfoItem) item);
+        final List<StreamInfoItem> nextItems = new ArrayList<>();
+        for (final InfoItem related : relatedItems) {
+            if (!(related instanceof StreamInfoItem)) {
+                continue;
+            }
+            final StreamInfoItem stream = (StreamInfoItem) related;
+            final String url = stream.getUrl();
+            if (url == null || url.isEmpty() || !seenUrls.add(url)) {
+                continue;
+            }
+            nextItems.add(stream);
+            if (nextItems.size() == 4) {
+                break;
             }
         }
 
-        Collections.shuffle(autoQueueItems);
-        return autoQueueItems.isEmpty()
-                ? null : getAutoQueuedSinglePlayQueue(autoQueueItems.get(0));
+        if (nextItems.isEmpty()) {
+            return null;
+        }
+        final SinglePlayQueue recommendations = new SinglePlayQueue(nextItems, 0);
+        // Distinguish recommendations from explicit user-selected queue entries.
+        for (final PlayQueueItem item : recommendations.getStreams()) {
+            item.setAutoQueued(true);
+        }
+        return recommendations;
     }
 
     // endregion
@@ -230,7 +246,7 @@ public final class PlayerHelper {
 
     public static boolean isAutoQueueEnabled(@NonNull final Context context) {
         return getPreferences(context)
-                .getBoolean(context.getString(R.string.auto_queue_key), false);
+                .getBoolean(context.getString(R.string.auto_queue_key), true);
     }
 
     public static boolean isClearingQueueConfirmationRequired(@NonNull final Context context) {
