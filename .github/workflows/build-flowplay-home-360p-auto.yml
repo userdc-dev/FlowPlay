@@ -101,7 +101,7 @@ jobs:
           grep -q 'NET_CAPABILITY_VALIDATED' "$data"
           grep -q 'limit_mobile_data_usage_value">360p' app/src/main/res/values/settings_keys.xml
           grep -q 'flowplay_android_auto_low_quality_key' app/src/main/res/xml/video_audio_settings.xml
-          test "$(grep -c '<item' app/src/main/res/menu/menu_feed_fragment.xml)" = 0
+          test "$(grep -c 'android:visible="false"' app/src/main/res/menu/menu_feed_fragment.xml)" = 2
           echo "Default feed bottom tabs, clean top bar and 360p data-saver verified"
 
       - name: Build signed debug-key Continuous APK
