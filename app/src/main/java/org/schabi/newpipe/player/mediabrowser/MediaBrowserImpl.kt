@@ -34,6 +34,8 @@ import org.schabi.newpipe.extractor.playlist.PlaylistInfoItem
 import org.schabi.newpipe.extractor.search.SearchInfo
 import org.schabi.newpipe.extractor.stream.StreamInfoItem
 import org.schabi.newpipe.local.subscription.SubscriptionManager
+import org.schabi.newpipe.local.feed.FeedDatabaseManager
+import org.schabi.newpipe.database.feed.model.FeedGroupEntity
 import org.schabi.newpipe.database.subscription.SubscriptionEntity
 import org.schabi.newpipe.local.bookmark.MergedPlaylistManager
 import org.schabi.newpipe.local.playlist.LocalPlaylistManager
@@ -153,6 +155,11 @@ class MediaBrowserImpl(
                             R.drawable.ic_subscriptions
                         ),
                         createRootMediaItem(
+                            ID_TRENDING,
+                            "Trending",
+                            R.drawable.ic_trending_up
+                        ),
+                        createRootMediaItem(
                             ID_DISCOVER,
                             "Explore music",
                             R.drawable.ic_music_note
@@ -174,6 +181,11 @@ class MediaBrowserImpl(
             when (path.removeAt(0)) {
                 ID_WHATS_NEW -> {
                     if (path.isEmpty()) return populateWhatsNew()
+                    throw parseError(parentId)
+                }
+
+                ID_TRENDING -> {
+                    if (path.isEmpty()) return populateTrending()
                     throw parseError(parentId)
                 }
 
@@ -387,9 +399,25 @@ class MediaBrowserImpl(
         return buildInfoItemMediaId(item).build().toString()
     }
 
-    // Flow Play's actual "What's New" / selected-service kiosk.
-    // Android Auto presents the results as playable audio, not video.
+    // Same local subscription update feed shown as "What's New" on the phone.
+    // This reads cached updates; refresh subscriptions in the phone app to load new items.
     private fun populateWhatsNew(): Single<List<MediaBrowserCompat.MediaItem>> {
+        return FeedDatabaseManager(context).getStreams(
+            FeedGroupEntity.GROUP_ALL_ID,
+            true,
+            true,
+            true
+        ).defaultIfEmpty(emptyList())
+            .map { streams ->
+                streams.take(50)
+                    .map { it.stream.toStreamInfoItem() }
+                    .mapNotNull(this::createInfoItemMediaItem)
+            }
+            .subscribeOn(Schedulers.io())
+    }
+
+    // The service's public trending kiosk is distinct from the subscription feed.
+    private fun populateTrending(): Single<List<MediaBrowserCompat.MediaItem>> {
         val serviceId = ServiceHelper.getSelectedServiceId(context)
         return Single.fromCallable {
             val kiosks = NewPipe.getService(serviceId).kioskList
