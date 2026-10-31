@@ -47,6 +47,18 @@ jobs:
           yes | "$sdkmanager" --sdk_root="$ANDROID_HOME" --licenses > /dev/null || true
           "$sdkmanager" --sdk_root="$ANDROID_HOME" --install "platforms;android-37.0" "build-tools;36.0.0" "platform-tools"
 
+      - name: Verify Android Auto browse source
+        shell: bash
+        run: |
+          set -euo pipefail
+          src="app/src/main/java/org/schabi/newpipe/player/mediabrowser/MediaBrowserImpl.kt"
+          grep -q 'FeedDatabaseManager(context).getStreams' "$src"
+          grep -q 'ID_SUBSCRIPTIONS ->' "$src"
+          grep -q 'ID_TRENDING ->' "$src"
+          grep -q 'populateSubscriptionStreams' "$src"
+          grep -q 'ID_DISCOVER ->' "$src"
+          echo "Whats New, Subscriptions, Trending and Explore browse handlers confirmed"
+
       - name: Build signed debug-key Continuous APK
         run: |
           chmod +x gradlew
@@ -59,16 +71,16 @@ jobs:
           mkdir -p dist
           source_apk="$(find app/build/outputs/apk/continuous -name '*.apk' -type f | head -n 1)"
           test -n "$source_apk" && test -s "$source_apk"
-          cp "$source_apk" "dist/Flow_Play_Auto_Discover_0.29.1.apk"
-          unzip -tq "dist/Flow_Play_Auto_Discover_0.29.1.apk"
-          sha256sum "dist/Flow_Play_Auto_Discover_0.29.1.apk" | tee dist/SHA256SUMS.txt
+          cp "$source_apk" "dist/Flow_Play_Auto_Discover_v2_0.29.1.apk"
+          unzip -tq "dist/Flow_Play_Auto_Discover_v2_0.29.1.apk"
+          sha256sum "dist/Flow_Play_Auto_Discover_v2_0.29.1.apk" | tee dist/SHA256SUMS.txt
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: Flow-Play-Auto-Discover-APK
           path: |
-            dist/Flow_Play_Auto_Discover_0.29.1.apk
+            dist/Flow_Play_Auto_Discover_v2_0.29.1.apk
             dist/SHA256SUMS.txt
           if-no-files-found: error
           retention-days: 30
@@ -80,13 +92,13 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          tag="flow-play-auto-discover-0.29.1"
+          tag="flow-play-auto-discover-v2-0.29.1"
           if gh release view "$tag" > /dev/null 2>&1; then
-            gh release upload "$tag" dist/Flow_Play_Auto_Discover_0.29.1.apk dist/SHA256SUMS.txt --clobber
+            gh release upload "$tag" dist/Flow_Play_Auto_Discover_v2_0.29.1.apk dist/SHA256SUMS.txt --clobber
           else
-            gh release create "$tag" dist/Flow_Play_Auto_Discover_0.29.1.apk dist/SHA256SUMS.txt \
+            gh release create "$tag" dist/Flow_Play_Auto_Discover_v2_0.29.1.apk dist/SHA256SUMS.txt \
               --target "$GITHUB_SHA" \
-              --title "Flow Play 0.29.1 - Android Auto Discover" \
-              --notes "Experimental Android Auto audio update: adds Whats New (selected-service kiosk) and actual subscribed channel browsing alongside Explore, Playlists and History. Audio-only car playback; Android Auto video projection is not supported on most head units. New package identity: export/import subscriptions on phone into this test app. Not yet tested in a physical car." \
+              --title "Flow Play 0.29.1 - Android Auto Browse v2" \
+              --notes "Experimental Android Auto audio browser: Whats New uses cached subscription updates, Subscriptions browses local saved channels and their streams, Trending is public kiosk, plus Explore, Playlists and History. Audio-only on car screen: video projection is not supported on general Android Auto head units. New package: import your NewPipe backup on the phone to populate subscriptions. Not yet tested on a physical head unit." \
               --prerelease
           fi
