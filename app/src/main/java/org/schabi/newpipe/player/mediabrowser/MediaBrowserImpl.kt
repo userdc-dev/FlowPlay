@@ -41,6 +41,7 @@ import org.schabi.newpipe.database.subscription.SubscriptionEntity
 import org.schabi.newpipe.local.bookmark.MergedPlaylistManager
 import org.schabi.newpipe.local.playlist.LocalPlaylistManager
 import org.schabi.newpipe.local.playlist.RemotePlaylistManager
+import org.schabi.newpipe.util.CarConnectionTracker
 import org.schabi.newpipe.util.ChannelTabHelper
 import org.schabi.newpipe.util.ExtractorHelper
 import org.schabi.newpipe.util.ServiceHelper
@@ -105,6 +106,9 @@ class MediaBrowserImpl(
             // this is a caller we can't trust (see PackageValidator's rules taken from uamp)
             return null
         }
+
+        // Only recognised Android Auto hosts activate the separate car data cap.
+        CarConnectionTracker.noteMediaBrowserClient(clientPackageName)
 
         if (rootHints?.getBoolean(EXTRA_RECENT, false) == true) {
             // the system is asking for a root to do media resumption, but we can't handle that yet,

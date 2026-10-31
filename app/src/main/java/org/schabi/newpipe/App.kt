@@ -96,6 +96,16 @@ open class App :
         // Initialize settings first because other initializations can use its values
         NewPipeSettings.initSettings(this)
 
+        // One-time migration for older Flow Play installs which inherited
+        // NewPipe's "no limit on mobile data" preference.
+        val resolutionPrefs = PreferenceManager.getDefaultSharedPreferences(this)
+        if (!resolutionPrefs.getBoolean("flowplay_360p_mobile_migrated_v1", false)) {
+            resolutionPrefs.edit()
+                .putString(getString(R.string.limit_mobile_data_usage_key), "360p")
+                .putBoolean("flowplay_360p_mobile_migrated_v1", true)
+                .apply()
+        }
+
         NewPipe.init(
             getDownloader(),
             Localization.getPreferredLocalization(this),

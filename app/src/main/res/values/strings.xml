@@ -557,7 +557,9 @@
     <string name="decline">Decline</string>
     <!-- Limit mobile data usage  -->
     <string name="limit_data_usage_none_description">No limit</string>
-    <string name="limit_mobile_data_usage_title">Limit resolution when using mobile data</string>
+    <string name="limit_mobile_data_usage_title">Limit resolution when using mobile data (default 360p)</string>
+    <string name="flowplay_android_auto_low_quality_title">Data saver when connected to Android Auto</string>
+    <string name="flowplay_android_auto_low_quality_summary">Use 360p or lower by default on Android Auto, even when its local wireless connection appears as Wi-Fi. Real internet Wi-Fi remains unrestricted when not connected to the car.</string>
     <string-array name="limit_data_usage_description_list">
         <item>@string/limit_data_usage_none_description</item>
         <item>1080p60</item>

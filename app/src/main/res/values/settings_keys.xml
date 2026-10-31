@@ -1402,7 +1402,8 @@
     <!-- Limit mobile data usage  -->
     <string name="limit_mobile_data_usage_key">limit_mobile_data_usage</string>
     <string name="limit_data_usage_none_key">limit_data_usage_none</string>
-    <string name="limit_mobile_data_usage_value">@string/limit_data_usage_none_key</string>
+    <string name="limit_mobile_data_usage_value">360p</string>
+    <string name="flowplay_android_auto_low_quality_key">flowplay_android_auto_low_quality</string>
     <string-array name="limit_data_usage_values_list">
         <item>@string/limit_data_usage_none_key</item>
         <item>1080p60</item>

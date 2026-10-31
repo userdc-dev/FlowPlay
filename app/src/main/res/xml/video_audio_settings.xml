@@ -34,6 +34,14 @@
         app:useSimpleSummaryProvider="true" />
 
     <SwitchPreferenceCompat
+        android:defaultValue="true"
+        android:key="@string/flowplay_android_auto_low_quality_key"
+        android:title="@string/flowplay_android_auto_low_quality_title"
+        android:summary="@string/flowplay_android_auto_low_quality_summary"
+        app:singleLineTitle="false"
+        app:iconSpaceReserved="false" />
+
+    <SwitchPreferenceCompat
         android:defaultValue="false"
         android:key="@string/show_higher_resolutions_key"
         android:summary="@string/show_higher_resolutions_summary"

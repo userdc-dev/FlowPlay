@@ -6,6 +6,8 @@ import android.content.Context;
 import android.content.SharedPreferences;
 import android.content.res.Resources;
 import android.net.ConnectivityManager;
+import android.net.Network;
+import android.net.NetworkCapabilities;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -706,16 +708,30 @@ public final class ListHelper {
      * @return maximum resolution allowed or null if there is no maximum
      */
     private static String getResolutionLimit(@NonNull final Context context) {
-        String resolutionLimit = null;
-        if (isMeteredNetwork(context)) {
-            final SharedPreferences preferences =
-                    PreferenceManager.getDefaultSharedPreferences(context);
-            final String defValue = context.getString(R.string.limit_data_usage_none_key);
-            final String value = preferences.getString(
-                    context.getString(R.string.limit_mobile_data_usage_key), defValue);
-            resolutionLimit = defValue.equals(value) ? null : value;
+        final SharedPreferences preferences =
+                PreferenceManager.getDefaultSharedPreferences(context);
+
+        // Mobile data defaults to 360p, even on a new install with no stored
+        // resolution preference. Do not mistake wireless Android Auto's local
+        // phone-to-car Wi-Fi link for a validated broadband internet connection.
+        final boolean carMode = CarConnectionTracker.isRecentlyConnected()
+                && preferences.getBoolean(
+                        context.getString(R.string.flowplay_android_auto_low_quality_key), true);
+        final boolean dataLimited = isMeteredNetwork(context) || carMode;
+        if (!dataLimited) {
+            return null;
         }
-        return resolutionLimit;
+
+        final String defaultValue = context.getString(R.string.limit_mobile_data_usage_value);
+        final String noLimit = context.getString(R.string.limit_data_usage_none_key);
+        final String preferred = preferences.getString(
+                context.getString(R.string.limit_mobile_data_usage_key), defaultValue);
+        String cap = noLimit.equals(preferred) ? null : preferred;
+
+        if (carMode && (cap == null || compareVideoStreamResolution("360p", cap) < 0)) {
+            cap = "360p";
+        }
+        return cap;
     }
 
     /**
@@ -727,10 +743,27 @@ public final class ListHelper {
     public static boolean isMeteredNetwork(@NonNull final Context context) {
         final ConnectivityManager manager =
                 ContextCompat.getSystemService(context, ConnectivityManager.class);
-        if (manager == null || manager.getActiveNetworkInfo() == null) {
-            return false;
+        if (manager == null) {
+            return true; // Unknown network: choose data-saving playback.
         }
 
+        final Network active = manager.getActiveNetwork();
+        if (active != null) {
+            final NetworkCapabilities caps = manager.getNetworkCapabilities(active);
+            if (caps != null) {
+                // A cellular default network is mobile data, even if Android
+                // marks a particular mobile plan as technically unmetered.
+                if (caps.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR)) {
+                    return true;
+                }
+                // Wireless Android Auto creates Wi-Fi connectivity which may
+                // be local-only. Treat unvalidated Wi-Fi as data limited.
+                if (caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)
+                        && !caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)) {
+                    return true;
+                }
+            }
+        }
         return manager.isActiveNetworkMetered();
     }
 
