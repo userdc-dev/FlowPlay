@@ -621,6 +621,122 @@ class MediaBrowserImpl(
     }
     //endregion
 
+
+    // Android Auto invokes this on a supported browse action, without opening a
+    // phone dialog. A default "Car Saves" playlist is created on first use.
+    // For hosts allowing more actions, the next shortcuts target existing playlists.
+    fun onCustomAction(
+        action: String,
+        extras: Bundle?,
+        result: Result<Bundle>
+    ) {
+        val mediaId = extras?.getString(
+            MediaConstants.EXTRAS_KEY_CUSTOM_BROWSER_ACTION_MEDIA_ITEM_ID
+        )
+        val uri = mediaId?.toUri()
+        val path = uri?.pathSegments.orEmpty()
+        val url = uri?.getQueryParameter(ID_URL)
+        val serviceId = path.getOrNull(2)?.toIntOrNull()
+        if (
+            action !in carSaveActionIds ||
+            path.size != 3 ||
+            path[0] != ID_INFO_ITEM ||
+            path[1] != ID_STREAM ||
+            serviceId == null ||
+            url.isNullOrBlank()
+        ) {
+            result.sendError(Bundle().apply {
+                putString(
+                    MediaConstants.EXTRAS_KEY_CUSTOM_BROWSER_ACTION_RESULT_MESSAGE,
+                    "Save not available for this item"
+                )
+            })
+            return
+        }
+        result.detach()
+        val playlists = LocalPlaylistManager(database)
+        disposables.add(
+            ExtractorHelper.getStreamInfo(serviceId, url, false)
+                .flatMap { info ->
+                    val stream = StreamEntity(info)
+                    playlists.getPlaylists().firstOrError().flatMap { saved ->
+                        val chosen = if (action == CAR_SAVE_ACTION) {
+                            saved.find { it.orderingName == carSavesPlaylistName }
+                        } else {
+                            saved.find { "$CAR_SAVE_TO_PLAYLIST_PREFIX${it.uid}" == action }
+                        }
+                        if (chosen != null) {
+                            playlists.appendToPlaylist(chosen.uid, listOf(stream)).firstOrError()
+                                .map { "Saved to ${chosen.orderingName}" }
+                        } else if (action == CAR_SAVE_ACTION) {
+                            playlists.createPlaylist(carSavesPlaylistName, listOf(stream))
+                                .firstOrError()
+                                .map { "Saved to Car Saves" }
+                        } else {
+                            Single.error<String>(IllegalArgumentException("Playlist unavailable"))
+                        }
+                    }
+                }
+                .subscribeOn(Schedulers.io())
+                .subscribe(
+                    { message ->
+                        notifyChildrenChanged.accept(ID_BOOKMARKS)
+                        result.sendResult(Bundle().apply {
+                            putString(
+                                MediaConstants.EXTRAS_KEY_CUSTOM_BROWSER_ACTION_RESULT_MESSAGE,
+                                message
+                            )
+                        })
+                    },
+                    { error ->
+                        Log.e(TAG, "Could not save item to car playlist", error)
+                        result.sendError(Bundle().apply {
+                            putString(
+                                MediaConstants.EXTRAS_KEY_CUSTOM_BROWSER_ACTION_RESULT_MESSAGE,
+                                "Could not save this item"
+                            )
+                        })
+                    }
+                )
+        )
+    }
+
+    // Let compatible car hosts refresh a saved item's browse actions.
+    fun onLoadItem(
+        mediaId: String,
+        result: Result<MediaBrowserCompat.MediaItem>
+    ) {
+        val uri = mediaId.toUri()
+        val path = uri.pathSegments
+        val serviceId = path.getOrNull(2)?.toIntOrNull()
+        val url = uri.getQueryParameter(ID_URL)
+        if (path.size != 3 || path[0] != ID_INFO_ITEM ||
+            path[1] != ID_STREAM || serviceId == null || url.isNullOrBlank()
+        ) {
+            result.sendResult(null)
+            return
+        }
+        result.detach()
+        disposables.add(
+            ExtractorHelper.getStreamInfo(serviceId, url, false)
+                .subscribeOn(Schedulers.io())
+                .map { info ->
+                    val stream = StreamInfoItem(
+                        info.serviceId, info.url, info.name, info.streamType
+                    )
+                    stream.uploaderName = info.uploaderName
+                    createInfoItemMediaItem(stream)
+                }
+                .subscribe(
+                    { result.sendResult(it) },
+                    { error ->
+                        Log.w(TAG, "Unable to refresh browse item", error)
+                        result.sendResult(null)
+                    }
+                )
+        )
+    }
+
     //region Search
     fun onSearch(
         query: String,
@@ -632,15 +748,11 @@ class MediaBrowserImpl(
 
         result.detach() // allows sendResult() to happen later
         disposables.add(
-            searchMusicBySongTitle(query)
-                // ignore it.errors, i.e. ignore errors about specific items, since there would
-                // be no way to show the error properly in Android Auto anyway
-                .map { it.relatedItems.mapNotNull(this::createInfoItemMediaItem) }
+            searchForCar(query)
                 .subscribeOn(Schedulers.io())
                 .subscribe(
                     { result.sendResult(it) },
                     { throwable ->
-                        // null indicates an error, see the docs of MediaSessionCompat.onSearch()
                         result.sendResult(emptyList())
                         Log.e(TAG, "Search error for query=\"$query\": $throwable")
                     }
@@ -648,10 +760,53 @@ class MediaBrowserImpl(
         )
     }
 
-    private fun searchMusicBySongTitle(query: String?): Single<SearchInfo> {
+    // Prefixes work with Android Auto's own voice / parked search field.
+    // Examples: "songs: artist", "playlists: 80s", "channels: jazz".
+    private fun searchForCar(query: String): Single<List<MediaBrowserCompat.MediaItem>> {
+        val trimmed = query.trim()
+        if (trimmed.startsWith("my playlists", ignoreCase = true)) {
+            val filter = trimmed.substringAfter("my playlists", "").trim().trimStart(':').trim()
+            return LocalPlaylistManager(database).getPlaylists().firstOrError()
+                .map { playlists ->
+                    playlists.filter { filter.isBlank() ||
+                        it.orderingName.orEmpty().contains(filter, ignoreCase = true) }
+                        .take(40)
+                        .map(this::createPlaylistMediaItem)
+                }
+        }
+        val filterPattern = Regex(
+            "^(songs?|tracks?|music|videos?|playlists?|channels?|artists?):\\s*",
+            RegexOption.IGNORE_CASE
+        )
+        val match = filterPattern.find(trimmed)
+        val actualQuery = if (match == null) trimmed else trimmed.substring(match.value.length)
+        val filter = when (match?.groupValues?.get(1)?.lowercase()) {
+            "song", "songs", "track", "tracks", "music" -> "music_songs"
+            "video", "videos" -> "videos"
+            "playlist", "playlists" -> "playlists"
+            "channel", "channels", "artist", "artists" -> "channels"
+            else -> null
+        }
+        return searchMusicBySongTitle(actualQuery, filter).map { info ->
+            info.relatedItems.take(50).mapNotNull(this::createInfoItemMediaItem)
+        }
+    }
+
+    private fun searchMusicBySongTitle(query: String?, typeFilter: String? = null): Single<SearchInfo> {
         val serviceId = ServiceHelper.getSelectedServiceId(context)
         val normalizedQuery = query?.trim().takeUnless { it.isNullOrBlank() } ?: "popular music"
-        return ExtractorHelper.searchFor(serviceId, normalizedQuery, listOf(), "")
+        val available = try {
+            NewPipe.getService(serviceId).searchQHFactory.availableContentFilter.toList()
+        } catch (e: Exception) {
+            emptyList()
+        }
+        val selected = typeFilter?.takeIf { it in available }
+        return ExtractorHelper.searchFor(
+            serviceId,
+            normalizedQuery,
+            if (selected == null) emptyList() else listOf(selected),
+            ""
+        )
     }
     //endregion
 
