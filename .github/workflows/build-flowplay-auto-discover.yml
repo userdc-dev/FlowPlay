@@ -1,0 +1,92 @@
+name: Build Flow Play Auto Discover APK
+
+on:
+  push:
+    branches:
+      - flowplay-auto-discover
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  android-apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout FlowPlay source
+        uses: actions/checkout@v4
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Recolour launcher icons for all Android versions
+        run: |
+          python3 -m pip install --user Pillow
+          python3 scripts/recolor_launcher.py
+
+      - name: Install Android SDK command-line tools and Android 37
+        shell: bash
+        run: |
+          set -euo pipefail
+          export ANDROID_HOME="$RUNNER_TEMP/flowplay-android-sdk"
+          export ANDROID_SDK_ROOT="$ANDROID_HOME"
+          echo "ANDROID_HOME=$ANDROID_HOME" >> "$GITHUB_ENV"
+          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT" >> "$GITHUB_ENV"
+          mkdir -p "$ANDROID_HOME/cmdline-tools"
+          curl --fail --location --retry 3 --silent --show-error \
+            "https://dl.google.com/android/repository/commandlinetools-linux-15859902_latest.zip" \
+            -o "$RUNNER_TEMP/commandlinetools.zip"
+          echo "4e4c464f145a7512b57d088ac6c278c03c9eea610886b35a5e0804e74eedf583  $RUNNER_TEMP/commandlinetools.zip" | sha256sum --check
+          unzip -q "$RUNNER_TEMP/commandlinetools.zip" -d "$RUNNER_TEMP/flowplay-cli"
+          mv "$RUNNER_TEMP/flowplay-cli/cmdline-tools" "$ANDROID_HOME/cmdline-tools/latest"
+          sdkmanager="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          yes | "$sdkmanager" --sdk_root="$ANDROID_HOME" --licenses > /dev/null || true
+          "$sdkmanager" --sdk_root="$ANDROID_HOME" --install "platforms;android-37.0" "build-tools;36.0.0" "platform-tools"
+
+      - name: Build signed debug-key Continuous APK
+        run: |
+          chmod +x gradlew
+          ./gradlew :app:assembleContinuous --no-daemon --stacktrace
+
+      - name: Verify APK and name downloadable file
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          source_apk="$(find app/build/outputs/apk/continuous -name '*.apk' -type f | head -n 1)"
+          test -n "$source_apk" && test -s "$source_apk"
+          cp "$source_apk" "dist/Flow_Play_Auto_Discover_0.29.1.apk"
+          unzip -tq "dist/Flow_Play_Auto_Discover_0.29.1.apk"
+          sha256sum "dist/Flow_Play_Auto_Discover_0.29.1.apk" | tee dist/SHA256SUMS.txt
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Flow-Play-Auto-Discover-APK
+          path: |
+            dist/Flow_Play_Auto_Discover_0.29.1.apk
+            dist/SHA256SUMS.txt
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Publish direct-download GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag="flow-play-auto-discover-0.29.1"
+          if gh release view "$tag" > /dev/null 2>&1; then
+            gh release upload "$tag" dist/Flow_Play_Auto_Discover_0.29.1.apk dist/SHA256SUMS.txt --clobber
+          else
+            gh release create "$tag" dist/Flow_Play_Auto_Discover_0.29.1.apk dist/SHA256SUMS.txt \
+              --target "$GITHUB_SHA" \
+              --title "Flow Play 0.29.1 - Android Auto Discover" \
+              --notes "Experimental Android Auto audio update: adds Whats New (selected-service kiosk) and actual subscribed channel browsing alongside Explore, Playlists and History. Audio-only car playback; Android Auto video projection is not supported on most head units. New package identity: export/import subscriptions on phone into this test app. Not yet tested in a physical car." \
+              --prerelease
+          fi
