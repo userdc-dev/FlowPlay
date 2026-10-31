@@ -11,6 +11,9 @@ import org.schabi.newpipe.R;
 import java.util.List;
 
 public final class TabsManager {
+    // Applied once per install, even if an old NewPipe database has been imported.
+    private static final String FLOWPLAY_HOME_MIGRATION_KEY = "flowplay_four_tabs_bottom_v1";
+
     private final SharedPreferences sharedPreferences;
     private final String savedTabsKey;
     private final Context context;
@@ -28,6 +31,15 @@ public final class TabsManager {
     }
 
     public List<Tab> getTabs() {
+        if (!sharedPreferences.getBoolean(FLOWPLAY_HOME_MIGRATION_KEY, false)) {
+            final List<Tab> defaults = getDefaultTabs();
+            sharedPreferences.edit()
+                    .putString(savedTabsKey, TabsJsonHelper.getJsonToSave(defaults))
+                    .putBoolean(context.getString(R.string.main_tabs_position_key), true)
+                    .putBoolean(FLOWPLAY_HOME_MIGRATION_KEY, true)
+                    .apply();
+            return defaults;
+        }
         final String savedJson = sharedPreferences.getString(savedTabsKey, null);
         try {
             return TabsJsonHelper.getTabsFromJson(savedJson);

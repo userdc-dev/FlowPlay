@@ -23,6 +23,7 @@ import org.schabi.newpipe.fragments.list.channel.ChannelFragment;
 import org.schabi.newpipe.fragments.list.kiosk.DefaultKioskFragment;
 import org.schabi.newpipe.fragments.list.kiosk.KioskFragment;
 import org.schabi.newpipe.fragments.list.playlist.PlaylistFragment;
+import org.schabi.newpipe.fragments.list.search.SearchFragment;
 import org.schabi.newpipe.local.bookmark.BookmarkFragment;
 import org.schabi.newpipe.local.feed.FeedFragment;
 import org.schabi.newpipe.local.history.StatisticsPlaylistFragment;
@@ -160,6 +161,7 @@ public abstract class Tab {
         DEFAULT_KIOSK(new DefaultKioskTab()),
         SUBSCRIPTIONS(new SubscriptionsTab()),
         FEED(new FeedTab()),
+        LIVE(new LiveTab()),
         BOOKMARKS(new BookmarksTab()),
         HISTORY(new HistoryTab()),
         KIOSK(new KioskTab()),
@@ -257,6 +259,37 @@ public abstract class Tab {
         @Override
         public FeedFragment getFragment(final Context context) {
             return new FeedFragment();
+        }
+    }
+
+    /**
+     * Live discovery opens a dedicated live-stream search. YouTube's public
+     * extractor has no standalone live-only search filter, so the results
+     * are a discovery query rather than a guaranteed live-only list.
+     */
+    public static class LiveTab extends Tab {
+        public static final int ID = 10;
+
+        @Override
+        public int getTabId() {
+            return ID;
+        }
+
+        @Override
+        public String getTabName(final Context context) {
+            return context.getString(R.string.flowplay_live_tab_title);
+        }
+
+        @DrawableRes
+        @Override
+        public int getTabIconRes(final Context context) {
+            return R.drawable.ic_live_tv;
+        }
+
+        @Override
+        public SearchFragment getFragment(final Context context) {
+            return SearchFragment.getInstance(ServiceHelper.getSelectedServiceId(context),
+                    "live now");
         }
     }
 

@@ -74,6 +74,9 @@ public class MainFragment extends BaseFragment implements TabLayout.OnTabSelecte
         super.onCreate(savedInstanceState);
         setHasOptionsMenu(true);
         tabsManager = TabsManager.getManager(activity);
+        // Apply Flow Play's four-tab bottom-navigation defaults before reading
+        // appearance preferences, including imported settings from older builds.
+        tabsManager.getTabs();
         tabsManager.setSavedTabsListener(() -> {
             if (DEBUG) {
                 Log.d(TAG, "TabsManager.SavedTabsChangeListener: "
@@ -90,7 +93,7 @@ public class MainFragment extends BaseFragment implements TabLayout.OnTabSelecte
         youtubeRestrictedModeEnabledKey = getString(R.string.youtube_restricted_mode_enabled);
         youtubeRestrictedModeEnabled = prefs.getBoolean(youtubeRestrictedModeEnabledKey, false);
         mainTabsPositionKey = getString(R.string.main_tabs_position_key);
-        mainTabsPositionBottom = prefs.getBoolean(mainTabsPositionKey, false);
+        mainTabsPositionBottom = prefs.getBoolean(mainTabsPositionKey, true);
     }
 
     @Override
@@ -110,6 +113,10 @@ public class MainFragment extends BaseFragment implements TabLayout.OnTabSelecte
         binding.mainTabLayout.addOnTabSelectedListener(this);
 
         setupTabs();
+        // What\'s New is the launch tab, not the old Trending kiosk.
+        if (savedInstanceState == null) {
+            binding.pager.setCurrentItem(0, false);
+        }
         updateTabLayoutPosition();
     }
 
@@ -124,7 +131,7 @@ public class MainFragment extends BaseFragment implements TabLayout.OnTabSelecte
             setupTabs();
         }
 
-        final boolean newMainTabsPosition = prefs.getBoolean(mainTabsPositionKey, false);
+        final boolean newMainTabsPosition = prefs.getBoolean(mainTabsPositionKey, true);
         if (mainTabsPositionBottom != newMainTabsPosition) {
             mainTabsPositionBottom = newMainTabsPosition;
             updateTabLayoutPosition();
