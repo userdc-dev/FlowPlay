@@ -339,6 +339,19 @@ public final class PlayerService extends MediaBrowserServiceCompat {
     }
 
     @Override
+    public void onLoadItem(@NonNull final String itemId,
+                           @NonNull final Result<MediaBrowserCompat.MediaItem> result) {
+        mediaBrowserImpl.onLoadItem(itemId, result);
+    }
+
+    @Override
+    public void onCustomAction(@NonNull final String action,
+                               @Nullable final Bundle extras,
+                               @NonNull final Result<Bundle> result) {
+        mediaBrowserImpl.onCustomAction(action, extras, result);
+    }
+
+    @Override
     public void onSearch(@NonNull final String query,
                          final Bundle extras,
                          @NonNull final Result<List<MediaBrowserCompat.MediaItem>> result) {
