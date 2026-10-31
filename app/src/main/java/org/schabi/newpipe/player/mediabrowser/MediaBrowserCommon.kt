@@ -8,6 +8,7 @@ internal const val ID_AUTHORITY = BuildConfig.APPLICATION_ID
 internal const val ID_ROOT = "//$ID_AUTHORITY"
 internal const val ID_BOOKMARKS = "playlists"
 internal const val ID_DISCOVER = "discover"
+internal const val ID_DISCOVER_MIXED = "discover-mixed"
 internal const val ID_RELATED = "related"
 internal const val CAR_SAVE_ACTION = "flowplay.car.save"
 internal const val CAR_SAVE_TO_PLAYLIST_PREFIX = "flowplay.car.save.playlist."
