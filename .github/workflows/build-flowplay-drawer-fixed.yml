@@ -1,4 +1,4 @@
-name: Build Flow Play Drawer Fixed APK
+name: Build Flow Play Simple Menu APK
 
 on:
   push:
@@ -123,31 +123,25 @@ jobs:
           grep -q 'setQueue(queue)' app/src/main/java/org/schabi/newpipe/player/mediasession/PlayQueueNavigator.java
           echo "Continuous related playback, user queue priority and Android Auto media queue verified"
 
-      - name: Verify drawer sections and data migration
+      - name: Verify simple menu and direct backup shortcut
         shell: bash
         run: |
           set -euo pipefail
           main="app/src/main/java/org/schabi/newpipe/MainActivity.java"
           settings="app/src/main/java/org/schabi/newpipe/settings/SettingsActivity.java"
-          backup="app/src/main/java/org/schabi/newpipe/settings/BackupRestoreSettingsFragment.java"
-          grep -q 'moreExpanded = false' "$main"
-          grep -q 'transferExpanded = false' "$main"
-          grep -q 'updateDrawerSectionVisibility()' "$main"
-          grep -q 'menu.setGroupVisible(R.id.menu_kiosks_group, moreExpanded)' "$main"
-          grep -q 'menu.setGroupVisible(R.id.menu_transfer_actions_group, transferExpanded)' "$main"
+          grep -q 'MENU_ID_TRANSFER' "$main"
+          grep -q 'SettingsActivity.FLOWPLAY_BACKUP_OPEN' "$main"
+          grep -q 'FLOWPLAY_BACKUP_OPEN = "backup_open"' "$settings"
+          grep -q 'new BackupRestoreSettingsFragment()' "$settings"
+          grep -q 'menu.add(R.id.menu_kiosks_group' "$main"
+          ! grep -q 'MENU_ID_MORE' "$main"
+          ! grep -q 'moreExpanded' "$main"
+          ! grep -q 'transferExpanded' "$main"
+          ! grep -q 'setGroupVisible' "$main"
           ! grep -q 'toggleServices()' "$main"
-          ! grep -q 'showServices()' "$main"
-          ! grep -q 'drawerHeaderServiceView' "$main"
           ! grep -q 'drawer_header_service_icon' app/src/main/res/layout/drawer_header.xml
           ! grep -q 'drawer_header_action_button' app/src/main/res/layout/drawer_header.xml
-          grep -q 'MENU_ID_IMPORT_GOOGLE' "$main"
-          grep -q 'ServiceList.YouTube.getServiceId()' "$main"
-          grep -q 'MENU_ID_MORE' "$main"
-          grep -q 'menu_transfer_actions_group' "$main"
-          grep -q 'FLOWPLAY_BACKUP_IMPORT' "$settings"
-          grep -q 'requirePreference(preferenceKey).performClick()' "$backup"
-          grep -q 'FlowPlayData-' "$backup"
-          echo "Stable interactive drawer sections and brand-only header verified"
+          echo "Direct Backup and restore link, always-visible bottom kiosks and clean Flow Play branding verified"
 
       - name: Build signed debug-key Continuous APK
         run: |
@@ -161,16 +155,16 @@ jobs:
           mkdir -p dist
           source_apk="$(find app/build/outputs/apk/continuous -name '*.apk' -type f | head -n 1)"
           test -n "$source_apk" && test -s "$source_apk"
-          cp "$source_apk" "dist/Flow_Play_Drawer_Fixed_0.29.1.apk"
-          unzip -tq "dist/Flow_Play_Drawer_Fixed_0.29.1.apk"
-          sha256sum "dist/Flow_Play_Drawer_Fixed_0.29.1.apk" | tee dist/SHA256SUMS.txt
+          cp "$source_apk" "dist/Flow_Play_Simple_Menu_0.29.1.apk"
+          unzip -tq "dist/Flow_Play_Simple_Menu_0.29.1.apk"
+          sha256sum "dist/Flow_Play_Simple_Menu_0.29.1.apk" | tee dist/SHA256SUMS.txt
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Flow-Play-Drawer-Fixed-APK
+          name: Flow-Play-Simple-Menu-APK
           path: |
-            dist/Flow_Play_Drawer_Fixed_0.29.1.apk
+            dist/Flow_Play_Simple_Menu_0.29.1.apk
             dist/SHA256SUMS.txt
           if-no-files-found: error
           retention-days: 30
@@ -182,13 +176,13 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          tag="flow-play-drawer-fixed-0.29.1"
+          tag="flow-play-simple-menu-0.29.1"
           if gh release view "$tag" > /dev/null 2>&1; then
-            gh release upload "$tag" dist/Flow_Play_Drawer_Fixed_0.29.1.apk dist/SHA256SUMS.txt --clobber
+            gh release upload "$tag" dist/Flow_Play_Simple_Menu_0.29.1.apk dist/SHA256SUMS.txt --clobber
           else
-            gh release create "$tag" dist/Flow_Play_Drawer_Fixed_0.29.1.apk dist/SHA256SUMS.txt \
+            gh release create "$tag" dist/Flow_Play_Simple_Menu_0.29.1.apk dist/SHA256SUMS.txt \
               --target "$GITHUB_SHA" \
-              --title "Flow Play 0.29.1 - Fixed Drawer and Related Queue" \
-              --notes "Continuous related Up Next (phone and Android Auto) enabled by default, with repaired tap-to-expand More and Import / Export drawer sections, a clean Flow Play-only branded header (no service selector): queue starts with up to four nonduplicate related tracks, adds more as it runs low, respects manual song selections and is not used for live streams. Preserves previous four-tab Flow Play home, 360p on mobile/Android Auto, clean toolbar, Related to Recent on car home, playlists and music search. Existing features: voice/parked search supports songs:, playlists:, channels:, videos:, my playlists: prefixes; Explore provides music/playlist/artist categories; supported hosts expose per-item Save to Car Saves and up to 3 existing playlist shortcuts. Related to Recent is based on NewPipe history. Car screen remains audio-only; Android Auto video not supported on most cars. New package identity means subscriptions/playlists require import. Adds now-playing Save to Car Saves button where head unit supports playback custom actions. Browse-save shortcuts also depend on car support. Not tested on physical head unit." \
+              --title "Flow Play 0.29.1 - Simple Menu and Related Queue" \
+              --notes "Continuous related Up Next (phone and Android Auto) enabled by default, with a direct Import / Export shortcut opening Settings > Backup and restore, and all trending/optional discovery categories individually visible at the bottom of the drawer, plus a clean Flow Play-only branded header (no service selector): queue starts with up to four nonduplicate related tracks, adds more as it runs low, respects manual song selections and is not used for live streams. Preserves previous four-tab Flow Play home, 360p on mobile/Android Auto, clean toolbar, Related to Recent on car home, playlists and music search. Existing features: voice/parked search supports songs:, playlists:, channels:, videos:, my playlists: prefixes; Explore provides music/playlist/artist categories; supported hosts expose per-item Save to Car Saves and up to 3 existing playlist shortcuts. Related to Recent is based on NewPipe history. Car screen remains audio-only; Android Auto video not supported on most cars. New package identity means subscriptions/playlists require import. Adds now-playing Save to Car Saves button where head unit supports playback custom actions. Browse-save shortcuts also depend on car support. Not tested on physical head unit." \
               --prerelease
           fi

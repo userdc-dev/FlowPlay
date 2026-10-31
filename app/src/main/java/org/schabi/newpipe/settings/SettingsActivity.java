@@ -68,6 +68,7 @@ public class SettingsActivity extends AppCompatActivity implements
     private static final String TAG = "SettingsActivity";
     public static final String EXTRA_FLOWPLAY_BACKUP_ACTION =
             "org.schabi.newpipe.extra.FLOWPLAY_BACKUP_ACTION";
+    public static final String FLOWPLAY_BACKUP_OPEN = "backup_open";
     public static final String FLOWPLAY_BACKUP_IMPORT = "backup_import";
     public static final String FLOWPLAY_BACKUP_EXPORT = "backup_export";
     public static final String FLOWPLAY_SUBSCRIPTIONS_IMPORT = "subscriptions_import";

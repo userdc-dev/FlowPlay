@@ -114,19 +114,10 @@ public class MainActivity extends AppCompatActivity {
     private ActionBarDrawerToggle toggle;
 
     // The navigation is fixed to the Flow Play experience; services aren't switched here.
-    private boolean transferExpanded = false;
-    private boolean moreExpanded = false;
-
     private BroadcastReceiver broadcastReceiver;
 
     private static final int MENU_ID_AUDIO_OUTPUT = 0x734c0001;
     private static final int MENU_ID_TRANSFER = 0x734c0010;
-    private static final int MENU_ID_IMPORT_GOOGLE = 0x734c0011;
-    private static final int MENU_ID_IMPORT_BACKUP = 0x734c0012;
-    private static final int MENU_ID_IMPORT_SUBS = 0x734c0013;
-    private static final int MENU_ID_EXPORT_BACKUP = 0x734c0014;
-    private static final int MENU_ID_EXPORT_SUBS = 0x734c0015;
-    private static final int MENU_ID_MORE = 0x734c0020;
     private static final int ITEM_ID_SUBSCRIPTIONS = -1;
     private static final int ITEM_ID_FEED = -2;
     private static final int ITEM_ID_BOOKMARKS = -3;
@@ -263,6 +254,7 @@ public class MainActivity extends AppCompatActivity {
         final Menu menu = drawerLayoutBinding.navigation.getMenu();
         menu.clear();
 
+        // Everyday Flow Play navigation stays at the top.
         menu.add(R.id.menu_tabs_group, ITEM_ID_SUBSCRIPTIONS, ORDER, R.string.tab_subscriptions)
                 .setIcon(R.drawable.ic_tv);
         menu.add(R.id.menu_tabs_group, ITEM_ID_FEED, ORDER, R.string.fragment_feed_title)
@@ -274,29 +266,20 @@ public class MainActivity extends AppCompatActivity {
         menu.add(R.id.menu_tabs_group, ITEM_ID_HISTORY, ORDER, R.string.action_history)
                 .setIcon(R.drawable.ic_history);
 
+        // One direct link to the EXISTING Settings > Backup and restore screen.
+        // No popup menu, expanding groups or duplicate import/export handlers.
         menu.add(R.id.menu_transfer_group, MENU_ID_TRANSFER, ORDER,
                         R.string.flowplay_data_transfer)
                 .setIcon(R.drawable.ic_settings_backup_restore);
-        // Register nested items ONCE. Clearing the NavigationView menu from inside
-        // its selection callback detaches the clicked item and breaks expansion.
-        menu.add(R.id.menu_transfer_actions_group, MENU_ID_IMPORT_GOOGLE, ORDER,
-                        R.string.flowplay_import_google)
-                .setIcon(R.drawable.ic_subscriptions);
-        menu.add(R.id.menu_transfer_actions_group, MENU_ID_IMPORT_BACKUP, ORDER,
-                        R.string.flowplay_import_backup)
-                .setIcon(R.drawable.ic_settings_backup_restore);
-        menu.add(R.id.menu_transfer_actions_group, MENU_ID_IMPORT_SUBS, ORDER,
-                        R.string.flowplay_import_subscriptions)
-                .setIcon(R.drawable.ic_subscriptions);
-        menu.add(R.id.menu_transfer_actions_group, MENU_ID_EXPORT_BACKUP, ORDER,
-                        R.string.flowplay_export_backup)
-                .setIcon(R.drawable.ic_file_download);
-        menu.add(R.id.menu_transfer_actions_group, MENU_ID_EXPORT_SUBS, ORDER,
-                        R.string.flowplay_export_subscriptions)
-                .setIcon(R.drawable.ic_file_download);
 
-        menu.add(R.id.menu_more_group, MENU_ID_MORE, ORDER, R.string.flowplay_more_menu)
-                .setIcon(R.drawable.ic_list);
+        menu.add(R.id.menu_options_about_group, MENU_ID_AUDIO_OUTPUT, ORDER,
+                        R.string.flowplay_audio_output)
+                .setIcon(R.drawable.ic_music_note);
+        menu.add(R.id.menu_options_about_group, ITEM_ID_SETTINGS, ORDER, R.string.settings)
+                .setIcon(R.drawable.ic_settings);
+
+        // Keep optional discovery categories plainly visible at the VERY BOTTOM.
+        // These are the actual service kiosks, not a broken More/Explore submenu.
         final StreamingService service = NewPipe.getService(
                 ServiceHelper.getSelectedServiceId(this));
         int kioskMenuItemId = 0;
@@ -306,94 +289,31 @@ public class MainActivity extends AppCompatActivity {
                     .setIcon(KioskTranslator.getKioskIcon(kiosk));
             kioskMenuItemId++;
         }
-
-        menu.add(R.id.menu_options_about_group, MENU_ID_AUDIO_OUTPUT, ORDER,
-                        R.string.flowplay_audio_output)
-                .setIcon(R.drawable.ic_music_note);
-        menu.add(R.id.menu_options_about_group, ITEM_ID_SETTINGS, ORDER, R.string.settings)
-                .setIcon(R.drawable.ic_settings);
-        updateDrawerSectionVisibility();
-    }
-
-    private void updateDrawerSectionVisibility() {
-        // Keep the parent menu items stable; change only child visibility.
-        // This avoids NavigationView's stale-item selection bug.
-        final Menu menu = drawerLayoutBinding.navigation.getMenu();
-        menu.setGroupVisible(R.id.menu_transfer_actions_group, transferExpanded);
-        menu.setGroupVisible(R.id.menu_kiosks_group, moreExpanded);
-        final MenuItem transfer = menu.findItem(MENU_ID_TRANSFER);
-        final MenuItem more = menu.findItem(MENU_ID_MORE);
-        if (transfer != null) {
-            transfer.setTitle(getString(R.string.flowplay_data_transfer)
-                    + (transferExpanded ? "  ▾" : "  ▸"));
-        }
-        if (more != null) {
-            more.setTitle(getString(R.string.flowplay_more_menu)
-                    + (moreExpanded ? "  ▾" : "  ▸"));
-        }
     }
 
     private boolean drawerItemSelected(final MenuItem item) {
         final int groupId = item.getGroupId();
         if (item.getItemId() == MENU_ID_TRANSFER) {
-            transferExpanded = !transferExpanded;
-            updateDrawerSectionVisibility();
-            return true; // keep drawer open
-        }
-        if (item.getItemId() == MENU_ID_MORE) {
-            moreExpanded = !moreExpanded;
-            updateDrawerSectionVisibility();
-            return true; // keep drawer open
-        }
-
-        if (groupId == R.id.menu_tabs_group) {
+            // Reuse the working backup/restore settings fragment directly.
+            final Intent intent = new Intent(this, SettingsActivity.class);
+            intent.putExtra(SettingsActivity.EXTRA_FLOWPLAY_BACKUP_ACTION,
+                    SettingsActivity.FLOWPLAY_BACKUP_OPEN);
+            startActivity(intent);
+        } else if (groupId == R.id.menu_tabs_group) {
             tabSelected(item);
+        } else if (groupId == R.id.menu_options_about_group) {
+            optionsAboutSelected(item);
         } else if (groupId == R.id.menu_kiosks_group) {
             try {
                 kioskSelected(item);
             } catch (final Exception e) {
                 ErrorUtil.showUiErrorSnackbar(this, "Selecting drawer kiosk", e);
             }
-        } else if (groupId == R.id.menu_transfer_actions_group) {
-            flowPlayTransferSelected(item);
-        } else if (groupId == R.id.menu_options_about_group) {
-            optionsAboutSelected(item);
         } else {
             return false;
         }
-
         mainBinding.getRoot().closeDrawers();
         return true;
-    }
-
-    private void flowPlayTransferSelected(final MenuItem item) {
-        switch (item.getItemId()) {
-            case MENU_ID_IMPORT_GOOGLE:
-                // Use the existing YouTube extractor to read Google Takeout ZIP/CSV files.
-                NavigationHelper.openSubscriptionsImportFragment(getSupportFragmentManager(),
-                        ServiceList.YouTube.getServiceId());
-                break;
-            case MENU_ID_IMPORT_BACKUP:
-                openFlowPlayBackupAction(SettingsActivity.FLOWPLAY_BACKUP_IMPORT);
-                break;
-            case MENU_ID_IMPORT_SUBS:
-                openFlowPlayBackupAction(SettingsActivity.FLOWPLAY_SUBSCRIPTIONS_IMPORT);
-                break;
-            case MENU_ID_EXPORT_BACKUP:
-                openFlowPlayBackupAction(SettingsActivity.FLOWPLAY_BACKUP_EXPORT);
-                break;
-            case MENU_ID_EXPORT_SUBS:
-                openFlowPlayBackupAction(SettingsActivity.FLOWPLAY_SUBSCRIPTIONS_EXPORT);
-                break;
-            default:
-                break;
-        }
-    }
-
-    private void openFlowPlayBackupAction(final String action) {
-        final Intent intent = new Intent(this, SettingsActivity.class);
-        intent.putExtra(SettingsActivity.EXTRA_FLOWPLAY_BACKUP_ACTION, action);
-        startActivity(intent);
     }
 
     private void tabSelected(final MenuItem item) {
