@@ -22,6 +22,7 @@ import org.schabi.newpipe.MainActivity.DEBUG
 import org.schabi.newpipe.NewPipeDatabase
 import org.schabi.newpipe.R
 import org.schabi.newpipe.database.history.model.StreamHistoryEntry
+import org.schabi.newpipe.database.stream.model.StreamEntity
 import org.schabi.newpipe.database.playlist.PlaylistLocalItem
 import org.schabi.newpipe.database.playlist.PlaylistStreamEntry
 import org.schabi.newpipe.database.playlist.model.PlaylistRemoteEntity
@@ -54,11 +55,13 @@ import org.schabi.newpipe.util.image.ImageStrategy
 class MediaBrowserImpl(
     private val context: Context,
     // parentId
-    notifyChildrenChanged: Consumer<String>
+    private val notifyChildrenChanged: Consumer<String>
 ) {
     private val packageValidator = PackageValidator(context)
     private val database = NewPipeDatabase.getInstance(context)
     private var disposables = CompositeDisposable()
+    @Volatile private var carSaveActionIds = listOf<String>()
+    private val carSavesPlaylistName = "Car Saves"
     // These categories are available even when the fork's separate local library is empty.
     // Android Auto itself supplies the voice / parked text-search interface.
     private val discoveryCategories = listOf(
@@ -110,7 +113,51 @@ class MediaBrowserImpl(
             MediaConstants.BROWSER_SERVICE_EXTRAS_KEY_SEARCH_SUPPORTED,
             true
         )
+        // The vehicle host controls whether per-item playlist actions are available.
+        val maxActions = rootHints?.getInt(
+            MediaConstants.BROWSER_ROOT_HINTS_KEY_CUSTOM_BROWSER_ACTION_LIMIT, 0
+        ) ?: 0
+        if (maxActions > 0) {
+            val actions = arrayListOf<Bundle>()
+            actions.add(createCarAction(CAR_SAVE_ACTION, "Save to Car Saves"))
+            try {
+                LocalPlaylistManager(database).getPlaylists().firstOrError().blockingGet()
+                    .filter { !it.orderingName.isNullOrBlank() && it.orderingName != carSavesPlaylistName }
+                    .take((maxActions - 1).coerceAtLeast(0).coerceAtMost(3))
+                    .forEach { playlist ->
+                        actions.add(createCarAction(
+                            "$CAR_SAVE_TO_PLAYLIST_PREFIX${playlist.uid}",
+                            "Save to ${playlist.orderingName}"
+                        ))
+                    }
+            } catch (e: Exception) {
+                Log.w(TAG, "Could not fetch car playlist shortcuts", e)
+            }
+            val finalActions = ArrayList(actions.take(maxActions))
+            carSaveActionIds = finalActions.mapNotNull {
+                it.getString(MediaConstants.EXTRAS_KEY_CUSTOM_BROWSER_ACTION_ID)
+            }
+            extras.putParcelableArrayList(
+                MediaConstants.BROWSER_SERVICE_EXTRAS_KEY_CUSTOM_BROWSER_ACTION_ROOT_LIST,
+                finalActions
+            )
+        } else {
+            carSaveActionIds = emptyList()
+        }
         return MediaBrowserServiceCompat.BrowserRoot(ID_ROOT, extras)
+    }
+    private fun createCarAction(actionId: String, label: String): Bundle {
+        val iconUri = Uri.Builder()
+            .scheme(ContentResolver.SCHEME_ANDROID_RESOURCE)
+            .authority(context.packageName)
+            .appendPath("drawable")
+            .appendPath("ic_playlist_add")
+            .build()
+        return Bundle().apply {
+            putString(MediaConstants.EXTRAS_KEY_CUSTOM_BROWSER_ACTION_ID, actionId)
+            putString(MediaConstants.EXTRAS_KEY_CUSTOM_BROWSER_ACTION_LABEL, label)
+            putString(MediaConstants.EXTRAS_KEY_CUSTOM_BROWSER_ACTION_ICON_URI, iconUri.toString())
+        }
     }
     //endregion
 
@@ -160,6 +207,11 @@ class MediaBrowserImpl(
                             R.drawable.ic_trending_up
                         ),
                         createRootMediaItem(
+                            ID_RELATED,
+                            "Related to Recent",
+                            R.drawable.ic_smart_display
+                        ),
+                        createRootMediaItem(
                             ID_DISCOVER,
                             "Explore music",
                             R.drawable.ic_music_note
@@ -186,6 +238,11 @@ class MediaBrowserImpl(
 
                 ID_TRENDING -> {
                     if (path.isEmpty()) return populateTrending()
+                    throw parseError(parentId)
+                }
+
+                ID_RELATED -> {
+                    if (path.isEmpty()) return populateRelatedToRecent()
                     throw parseError(parentId)
                 }
 
@@ -312,6 +369,14 @@ class MediaBrowserImpl(
 
         ImageStrategy.choosePreferredImage(item.thumbnails)?.let {
             builder.setIconUri(imageUriOrNullIfDisabled(it))
+        }
+        if (item.infoType == InfoType.STREAM && carSaveActionIds.isNotEmpty()) {
+            val extras = Bundle()
+            extras.putStringArrayList(
+                MediaConstants.DESCRIPTION_EXTRAS_KEY_CUSTOM_BROWSER_ACTION_ID_LIST,
+                ArrayList(carSaveActionIds)
+            )
+            builder.setExtras(extras)
         }
 
         return MediaBrowserCompat.MediaItem(
@@ -477,6 +542,23 @@ class MediaBrowserImpl(
                             .mapNotNull(this::createInfoItemMediaItem)
                     }
             }
+    }
+
+    private fun populateRelatedToRecent(): Single<List<MediaBrowserCompat.MediaItem>> {
+        return database.streamHistoryDAO().history.firstOrError()
+            .flatMap { history ->
+                val recent = history.firstOrNull()
+                    ?: return@flatMap Single.just(emptyList<MediaBrowserCompat.MediaItem>())
+                ExtractorHelper.getStreamInfo(
+                    recent.streamEntity.serviceId,
+                    recent.streamEntity.url,
+                    false
+                ).map { info ->
+                    info.relatedItems.filterIsInstance<StreamInfoItem>()
+                        .take(30)
+                        .mapNotNull(this::createInfoItemMediaItem)
+                }
+            }.subscribeOn(Schedulers.io())
     }
 
     private fun populateHistory(): Single<List<MediaBrowserCompat.MediaItem>> {
