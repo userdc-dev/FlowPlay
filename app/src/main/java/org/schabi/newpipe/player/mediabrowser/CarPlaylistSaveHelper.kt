@@ -21,9 +21,9 @@ object CarPlaylistSaveHelper {
                 val saved = playlists.find { it.orderingName == "Car Saves" }
                 val entity = StreamEntity(stream)
                 if (saved != null) {
-                    manager.appendToPlaylist(saved.uid, listOf(entity)).firstOrError()
+                    manager.appendToPlaylist(saved.uid, listOf(entity)).toSingle()
                 } else {
-                    manager.createPlaylist("Car Saves", listOf(entity)).firstOrError()
+                    manager.createPlaylist("Car Saves", listOf(entity)).toSingle()
                 }
             }
             .subscribeOn(Schedulers.io())
