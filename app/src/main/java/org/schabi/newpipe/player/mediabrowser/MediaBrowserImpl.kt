@@ -199,42 +199,38 @@ class MediaBrowserImpl(
             if (path.isEmpty()) {
                 return Single.just(
                     listOf(
-                        createRootMediaItem(
-                            ID_WHATS_NEW,
-                            "What's New",
-                            R.drawable.ic_whatshot
-                        ),
-                        createRootMediaItem(
-                            ID_SUBSCRIPTIONS,
-                            "Subscriptions",
-                            R.drawable.ic_subscriptions
-                        ),
-                        createRootMediaItem(
-                            ID_TRENDING,
-                            "Trending",
-                            R.drawable.ic_trending_up
-                        ),
+                        // Car home, most useful entries first so they appear
+                        // directly on head units which truncate the home list.
                         createRootMediaItem(
                             ID_RELATED,
                             "Related to Recent",
                             R.drawable.ic_smart_display
                         ),
                         createRootMediaItem(
+                            ID_BOOKMARKS,
+                            "PLAYLISTS",
+                            R.drawable.ic_bookmark_white
+                        ),
+                        createRootMediaItem(
                             ID_DISCOVER,
-                            "Explore music & playlists",
+                            "Explore music",
                             R.drawable.ic_music_note
                         ),
                         createRootMediaItem(
-                            ID_BOOKMARKS,
-                            context.resources.getString(R.string.tab_bookmarks_short),
-                            R.drawable.ic_bookmark_white
+                            ID_DISCOVER_MIXED,
+                            "Explore music & playlists",
+                            R.drawable.ic_playlist_play
+                        ),
+                        createRootMediaItem(
+                            ID_WHATS_NEW,
+                            "What's New",
+                            R.drawable.ic_whatshot
                         ),
                         createRootMediaItem(
                             ID_HISTORY,
                             context.resources.getString(R.string.action_history),
                             R.drawable.ic_history_white
                         )
-                    )
                 )
             }
 
@@ -265,23 +261,31 @@ class MediaBrowserImpl(
                     throw parseError(parentId)
                 }
 
-                ID_DISCOVER -> {
+                ID_DISCOVER, ID_DISCOVER_MIXED -> {
+                    val rootId = parentIdUri.pathSegments.first()
+                    val categories = if (rootId == ID_DISCOVER) {
+                        // Music-only browse is focused on playable songs.
+                        discoveryCategories.filter { it.filter == "music_songs" }
+                    } else {
+                        // Combined discovery includes music, playlist results,
+                        // podcasts and artists (do not discard PlaylistInfoItem).
+                        discoveryCategories
+                    }
                     if (path.isEmpty()) {
-                        return Single.just(discoveryCategories.mapIndexed { index, category ->
+                        return Single.just(categories.mapIndexed { index, category ->
                             createRootMediaItem(
-                                "$ID_DISCOVER/$index",
+                                "$rootId/$index",
                                 category.name,
                                 R.drawable.ic_music_note
                             )
                         })
                     }
                     val index = path.singleOrNull()?.toIntOrNull()
-                    if (index != null && index in discoveryCategories.indices) {
-                        return searchMusicBySongTitle(discoveryCategories[index].query, discoveryCategories[index].filter)
+                    if (index != null && index in categories.indices) {
+                        return searchMusicBySongTitle(categories[index].query, categories[index].filter)
                             .subscribeOn(Schedulers.io())
                             .map { search ->
-                                search.relatedItems.filterIsInstance<StreamInfoItem>()
-                                    .take(30)
+                                search.relatedItems.take(30)
                                     .mapNotNull(this::createInfoItemMediaItem)
                             }
                     }
