@@ -231,6 +231,7 @@ class MediaBrowserImpl(
                             context.resources.getString(R.string.action_history),
                             R.drawable.ic_history_white
                         )
+                    )
                 )
             }
 
