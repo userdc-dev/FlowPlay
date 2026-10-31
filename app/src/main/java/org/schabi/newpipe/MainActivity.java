@@ -41,9 +41,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.webkit.WebView;
 import android.widget.AdapterView;
-import android.widget.ArrayAdapter;
 import android.widget.FrameLayout;
-import android.widget.Spinner;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -64,7 +62,6 @@ import com.google.android.material.bottomsheet.BottomSheetBehavior;
 import org.schabi.newpipe.databinding.ActivityMainBinding;
 import org.schabi.newpipe.databinding.DrawerHeaderBinding;
 import org.schabi.newpipe.databinding.DrawerLayoutBinding;
-import org.schabi.newpipe.databinding.InstanceSpinnerLayoutBinding;
 import org.schabi.newpipe.databinding.ToolbarLayoutBinding;
 import org.schabi.newpipe.error.ErrorUtil;
 import org.schabi.newpipe.extractor.NewPipe;
@@ -72,7 +69,6 @@ import org.schabi.newpipe.extractor.ServiceList;
 import org.schabi.newpipe.extractor.StreamingService;
 import org.schabi.newpipe.extractor.comments.CommentsInfoItem;
 import org.schabi.newpipe.extractor.exceptions.ExtractionException;
-import org.schabi.newpipe.extractor.services.peertube.PeertubeInstance;
 import org.schabi.newpipe.fragments.BackPressable;
 import org.schabi.newpipe.fragments.MainFragment;
 import org.schabi.newpipe.fragments.detail.VideoDetailFragment;
@@ -91,7 +87,6 @@ import org.schabi.newpipe.util.DeviceUtils;
 import org.schabi.newpipe.util.KioskTranslator;
 import org.schabi.newpipe.util.Localization;
 import org.schabi.newpipe.util.NavigationHelper;
-import org.schabi.newpipe.util.PeertubeHelper;
 import org.schabi.newpipe.util.PermissionHelper;
 import org.schabi.newpipe.util.ReleaseVersionUtil;
 import org.schabi.newpipe.util.SerializedCache;
@@ -103,8 +98,6 @@ import org.schabi.newpipe.views.FocusOverlayView;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Objects;
 
 public class MainActivity extends AppCompatActivity {
@@ -119,7 +112,7 @@ public class MainActivity extends AppCompatActivity {
 
     private ActionBarDrawerToggle toggle;
 
-    private boolean servicesShown = false;
+    // The navigation is fixed to the Flow Play experience; services aren't switched here.
     private boolean transferExpanded = false;
     private boolean moreExpanded = false;
 
@@ -256,25 +249,6 @@ public class MainActivity extends AppCompatActivity {
                 toolbarLayoutBinding.toolbar, R.string.drawer_open, R.string.drawer_close);
         toggle.syncState();
         mainBinding.getRoot().addDrawerListener(toggle);
-        mainBinding.getRoot().addDrawerListener(new DrawerLayout.SimpleDrawerListener() {
-            private int lastService;
-
-            @Override
-            public void onDrawerOpened(final View drawerView) {
-                lastService = ServiceHelper.getSelectedServiceId(MainActivity.this);
-            }
-
-            @Override
-            public void onDrawerClosed(final View drawerView) {
-                if (servicesShown) {
-                    toggleServices();
-                }
-                if (lastService != ServiceHelper.getSelectedServiceId(MainActivity.this)) {
-                    ActivityCompat.recreate(MainActivity.this);
-                }
-            }
-        });
-
         drawerLayoutBinding.navigation.setNavigationItemSelectedListener(this::drawerItemSelected);
         setupDrawerHeader();
     }
@@ -286,8 +260,8 @@ public class MainActivity extends AppCompatActivity {
      */
     private void addDrawerMenuForCurrentService() throws ExtractionException {
         final Menu menu = drawerLayoutBinding.navigation.getMenu();
-        // Rebuild in the same order after every expansion/collapse.
         menu.clear();
+
         menu.add(R.id.menu_tabs_group, ITEM_ID_SUBSCRIPTIONS, ORDER, R.string.tab_subscriptions)
                 .setIcon(R.drawable.ic_tv);
         menu.add(R.id.menu_tabs_group, ITEM_ID_FEED, ORDER, R.string.fragment_feed_title)
@@ -302,38 +276,34 @@ public class MainActivity extends AppCompatActivity {
         menu.add(R.id.menu_transfer_group, MENU_ID_TRANSFER, ORDER,
                         R.string.flowplay_data_transfer)
                 .setIcon(R.drawable.ic_settings_backup_restore);
-        if (transferExpanded) {
-            menu.add(R.id.menu_transfer_actions_group, MENU_ID_IMPORT_GOOGLE, ORDER,
-                            R.string.flowplay_import_google)
-                    .setIcon(R.drawable.ic_subscriptions);
-            menu.add(R.id.menu_transfer_actions_group, MENU_ID_IMPORT_BACKUP, ORDER,
-                            R.string.flowplay_import_backup)
-                    .setIcon(R.drawable.ic_settings_backup_restore);
-            menu.add(R.id.menu_transfer_actions_group, MENU_ID_IMPORT_SUBS, ORDER,
-                            R.string.flowplay_import_subscriptions)
-                    .setIcon(R.drawable.ic_subscriptions);
-            menu.add(R.id.menu_transfer_actions_group, MENU_ID_EXPORT_BACKUP, ORDER,
-                            R.string.flowplay_export_backup)
-                    .setIcon(R.drawable.ic_file_download);
-            menu.add(R.id.menu_transfer_actions_group, MENU_ID_EXPORT_SUBS, ORDER,
-                            R.string.flowplay_export_subscriptions)
-                    .setIcon(R.drawable.ic_file_download);
-        }
+        // Register nested items ONCE. Clearing the NavigationView menu from inside
+        // its selection callback detaches the clicked item and breaks expansion.
+        menu.add(R.id.menu_transfer_actions_group, MENU_ID_IMPORT_GOOGLE, ORDER,
+                        R.string.flowplay_import_google)
+                .setIcon(R.drawable.ic_subscriptions);
+        menu.add(R.id.menu_transfer_actions_group, MENU_ID_IMPORT_BACKUP, ORDER,
+                        R.string.flowplay_import_backup)
+                .setIcon(R.drawable.ic_settings_backup_restore);
+        menu.add(R.id.menu_transfer_actions_group, MENU_ID_IMPORT_SUBS, ORDER,
+                        R.string.flowplay_import_subscriptions)
+                .setIcon(R.drawable.ic_subscriptions);
+        menu.add(R.id.menu_transfer_actions_group, MENU_ID_EXPORT_BACKUP, ORDER,
+                        R.string.flowplay_export_backup)
+                .setIcon(R.drawable.ic_file_download);
+        menu.add(R.id.menu_transfer_actions_group, MENU_ID_EXPORT_SUBS, ORDER,
+                        R.string.flowplay_export_subscriptions)
+                .setIcon(R.drawable.ic_file_download);
 
-        // All service kiosks (trending, gaming, music, movies, podcasts and live)
-        // belong in More. They are not present in the drawer until it is expanded.
         menu.add(R.id.menu_more_group, MENU_ID_MORE, ORDER, R.string.flowplay_more_menu)
                 .setIcon(R.drawable.ic_list);
-        if (moreExpanded) {
-            final StreamingService service = NewPipe.getService(
-                    ServiceHelper.getSelectedServiceId(this));
-            int kioskMenuItemId = 0;
-            for (final String kiosk : service.getKioskList().getAvailableKiosks()) {
-                menu.add(R.id.menu_kiosks_group, kioskMenuItemId, ORDER,
-                                KioskTranslator.getTranslatedKioskName(kiosk, this))
-                        .setIcon(KioskTranslator.getKioskIcon(kiosk));
-                kioskMenuItemId++;
-            }
+        final StreamingService service = NewPipe.getService(
+                ServiceHelper.getSelectedServiceId(this));
+        int kioskMenuItemId = 0;
+        for (final String kiosk : service.getKioskList().getAvailableKiosks()) {
+            menu.add(R.id.menu_kiosks_group, kioskMenuItemId, ORDER,
+                            KioskTranslator.getTranslatedKioskName(kiosk, this))
+                    .setIcon(KioskTranslator.getKioskIcon(kiosk));
+            kioskMenuItemId++;
         }
 
         menu.add(R.id.menu_options_about_group, MENU_ID_AUDIO_OUTPUT, ORDER,
@@ -341,28 +311,41 @@ public class MainActivity extends AppCompatActivity {
                 .setIcon(R.drawable.ic_music_note);
         menu.add(R.id.menu_options_about_group, ITEM_ID_SETTINGS, ORDER, R.string.settings)
                 .setIcon(R.drawable.ic_settings);
-        // Donate, About and FAQ are intentionally excluded from the drawer.
+        updateDrawerSectionVisibility();
+    }
+
+    private void updateDrawerSectionVisibility() {
+        // Keep the parent menu items stable; change only child visibility.
+        // This avoids NavigationView's stale-item selection bug.
+        final Menu menu = drawerLayoutBinding.navigation.getMenu();
+        menu.setGroupVisible(R.id.menu_transfer_actions_group, transferExpanded);
+        menu.setGroupVisible(R.id.menu_kiosks_group, moreExpanded);
+        final MenuItem transfer = menu.findItem(MENU_ID_TRANSFER);
+        final MenuItem more = menu.findItem(MENU_ID_MORE);
+        if (transfer != null) {
+            transfer.setTitle(getString(R.string.flowplay_data_transfer)
+                    + (transferExpanded ? "  ▾" : "  ▸"));
+        }
+        if (more != null) {
+            more.setTitle(getString(R.string.flowplay_more_menu)
+                    + (moreExpanded ? "  ▾" : "  ▸"));
+        }
     }
 
     private boolean drawerItemSelected(final MenuItem item) {
         final int groupId = item.getGroupId();
-        if (groupId == R.id.menu_transfer_group || groupId == R.id.menu_more_group) {
-            if (groupId == R.id.menu_transfer_group) {
-                transferExpanded = !transferExpanded;
-            } else {
-                moreExpanded = !moreExpanded;
-            }
-            try {
-                addDrawerMenuForCurrentService();
-            } catch (final ExtractionException e) {
-                ErrorUtil.showUiErrorSnackbar(this, "Expanding FlowPlay navigation", e);
-            }
-            return true; // Keep the drawer open while choosing a nested option.
+        if (item.getItemId() == MENU_ID_TRANSFER) {
+            transferExpanded = !transferExpanded;
+            updateDrawerSectionVisibility();
+            return true; // keep drawer open
+        }
+        if (item.getItemId() == MENU_ID_MORE) {
+            moreExpanded = !moreExpanded;
+            updateDrawerSectionVisibility();
+            return true; // keep drawer open
         }
 
-        if (groupId == R.id.menu_services_group) {
-            changeService(item);
-        } else if (groupId == R.id.menu_tabs_group) {
+        if (groupId == R.id.menu_tabs_group) {
             tabSelected(item);
         } else if (groupId == R.id.menu_kiosks_group) {
             try {
@@ -412,16 +395,6 @@ public class MainActivity extends AppCompatActivity {
         startActivity(intent);
     }
 
-    private void changeService(final MenuItem item) {
-        drawerLayoutBinding.navigation.getMenu()
-                .getItem(ServiceHelper.getSelectedServiceId(this))
-                .setChecked(false);
-        ServiceHelper.setSelectedServiceId(this, item.getItemId());
-        drawerLayoutBinding.navigation.getMenu()
-                .getItem(ServiceHelper.getSelectedServiceId(this))
-                .setChecked(true);
-    }
-
     private void tabSelected(final MenuItem item) {
         switch (item.getItemId()) {
             case ITEM_ID_SUBSCRIPTIONS:
@@ -464,10 +437,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void setupDrawerHeader() {
-        drawerHeaderBinding.drawerHeaderActionButton.setOnClickListener(view -> toggleServices());
-
-        // If the current app name is bigger than the default "NewPipe" (7 chars),
-        // let the text view grow a little more as well.
+        // The header is brand-only, without a YouTube label, selector or tap overlay.
         if (getString(R.string.app_name).length() > "NewPipe".length()) {
             final ViewGroup.LayoutParams layoutParams =
                     drawerHeaderBinding.drawerHeaderNewpipeTitle.getLayoutParams();
@@ -479,89 +449,6 @@ public class MainActivity extends AppCompatActivity {
             drawerHeaderBinding.drawerHeaderNewpipeTitle.setMaxWidth(getResources()
                     .getDimensionPixelSize(R.dimen.drawer_header_newpipe_title_max_width));
         }
-    }
-
-    private void toggleServices() {
-        servicesShown = !servicesShown;
-
-        drawerLayoutBinding.navigation.getMenu().clear();
-
-        // Show up or down arrow
-        drawerHeaderBinding.drawerArrow.setImageResource(
-                servicesShown ? R.drawable.ic_arrow_drop_up : R.drawable.ic_arrow_drop_down);
-
-        if (servicesShown) {
-            showServices();
-        } else {
-            try {
-                addDrawerMenuForCurrentService();
-            } catch (final Exception e) {
-                ErrorUtil.showUiErrorSnackbar(this, "Showing main page tabs", e);
-            }
-        }
-    }
-
-    private void showServices() {
-        for (final StreamingService s : NewPipe.getServices()) {
-            final String title = s.getServiceInfo().getName();
-
-            final MenuItem menuItem = drawerLayoutBinding.navigation.getMenu()
-                    .add(R.id.menu_services_group, s.getServiceId(), ORDER, title)
-                    .setIcon(ServiceHelper.getIcon(s.getServiceId()));
-
-            // peertube specifics
-            if (s.getServiceId() == 3) {
-                enhancePeertubeMenu(menuItem);
-            }
-        }
-        drawerLayoutBinding.navigation.getMenu()
-                .getItem(ServiceHelper.getSelectedServiceId(this))
-                .setChecked(true);
-    }
-
-    private void enhancePeertubeMenu(final MenuItem menuItem) {
-        final PeertubeInstance currentInstance = PeertubeHelper.getCurrentInstance();
-        menuItem.setTitle(currentInstance.getName());
-        final Spinner spinner = InstanceSpinnerLayoutBinding.inflate(LayoutInflater.from(this))
-                .getRoot();
-        final List<PeertubeInstance> instances = PeertubeHelper.getInstanceList(this);
-        final List<String> items = new ArrayList<>();
-        int defaultSelect = 0;
-        for (final PeertubeInstance instance : instances) {
-            items.add(instance.getName());
-            if (instance.getUrl().equals(currentInstance.getUrl())) {
-                defaultSelect = items.size() - 1;
-            }
-        }
-        final ArrayAdapter<String> adapter = new ArrayAdapter<>(this,
-                R.layout.instance_spinner_item, items);
-        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-        spinner.setAdapter(adapter);
-        spinner.setSelection(defaultSelect, false);
-        spinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
-            @Override
-            public void onItemSelected(final AdapterView<?> parent, final View view,
-                                       final int position, final long id) {
-                final PeertubeInstance newInstance = instances.get(position);
-                if (newInstance.getUrl().equals(PeertubeHelper.getCurrentInstance().getUrl())) {
-                    return;
-                }
-                PeertubeHelper.selectInstance(newInstance, getApplicationContext());
-                changeService(menuItem);
-                mainBinding.getRoot().closeDrawers();
-                new Handler(Looper.getMainLooper()).postDelayed(() -> {
-                    getSupportFragmentManager().popBackStack(null,
-                            FragmentManager.POP_BACK_STACK_INCLUSIVE);
-                    ActivityCompat.recreate(MainActivity.this);
-                }, 300);
-            }
-
-            @Override
-            public void onNothingSelected(final AdapterView<?> parent) {
-
-            }
-        });
-        menuItem.setActionView(spinner);
     }
 
     @Override
@@ -584,22 +471,6 @@ public class MainActivity extends AppCompatActivity {
         // Close drawer on return, and don't show animation,
         // so it looks like the drawer isn't open when the user returns to MainActivity
         mainBinding.getRoot().closeDrawer(GravityCompat.START, false);
-        try {
-            final int selectedServiceId = ServiceHelper.getSelectedServiceId(this);
-            final String selectedServiceName = NewPipe.getService(selectedServiceId)
-                    .getServiceInfo().getName();
-            drawerHeaderBinding.drawerHeaderServiceView.setText(selectedServiceName);
-            drawerHeaderBinding.drawerHeaderServiceIcon.setImageResource(ServiceHelper
-                    .getIcon(selectedServiceId));
-
-            drawerHeaderBinding.drawerHeaderServiceView.post(() -> drawerHeaderBinding
-                    .drawerHeaderServiceView.setSelected(true));
-            drawerHeaderBinding.drawerHeaderActionButton.setContentDescription(
-                    getString(R.string.drawer_header_description) + selectedServiceName);
-        } catch (final Exception e) {
-            ErrorUtil.showUiErrorSnackbar(this, "Setting up service toggle", e);
-        }
-
         if (sharedPreferences.getBoolean(Constants.KEY_THEME_CHANGE, false)) {
             if (DEBUG) {
                 Log.d(TAG, "Theme has changed, recreating activity...");
