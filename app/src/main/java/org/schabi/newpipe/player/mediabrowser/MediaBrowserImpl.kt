@@ -64,14 +64,18 @@ class MediaBrowserImpl(
     private val carSavesPlaylistName = "Car Saves"
     // These categories are available even when the fork's separate local library is empty.
     // Android Auto itself supplies the voice / parked text-search interface.
+    private data class DiscoverCategory(val name: String, val query: String, val filter: String?)
     private val discoveryCategories = listOf(
-        "Popular music" to "popular music hits",
-        "New music" to "new music songs",
-        "Chill music" to "relaxing chill music",
-        "Rock music" to "rock music hits",
-        "Electronic music" to "electronic dance music",
-        "Hindi music" to "Hindi songs",
-        "Podcasts" to "popular podcasts"
+        DiscoverCategory("Popular songs", "popular music hits", "music_songs"),
+        DiscoverCategory("New music", "new music songs", "music_songs"),
+        DiscoverCategory("Chill music", "relaxing chill music", "music_songs"),
+        DiscoverCategory("Rock music", "rock music hits", "music_songs"),
+        DiscoverCategory("Hindi music", "Hindi songs", "music_songs"),
+        DiscoverCategory("Electronic music", "electronic dance music", "music_songs"),
+        DiscoverCategory("Music playlists", "top music playlists", "music_playlists"),
+        DiscoverCategory("Hindi playlists", "Hindi hits playlists", "playlists"),
+        DiscoverCategory("Podcast playlists", "popular podcasts", "playlists"),
+        DiscoverCategory("Artists and channels", "popular music artists", "channels")
     )
 
     init {
@@ -213,7 +217,7 @@ class MediaBrowserImpl(
                         ),
                         createRootMediaItem(
                             ID_DISCOVER,
-                            "Explore music",
+                            "Explore music & playlists",
                             R.drawable.ic_music_note
                         ),
                         createRootMediaItem(
@@ -262,14 +266,14 @@ class MediaBrowserImpl(
                         return Single.just(discoveryCategories.mapIndexed { index, category ->
                             createRootMediaItem(
                                 "$ID_DISCOVER/$index",
-                                category.first,
+                                category.name,
                                 R.drawable.ic_music_note
                             )
                         })
                     }
                     val index = path.singleOrNull()?.toIntOrNull()
                     if (index != null && index in discoveryCategories.indices) {
-                        return searchMusicBySongTitle(discoveryCategories[index].second)
+                        return searchMusicBySongTitle(discoveryCategories[index].query, discoveryCategories[index].filter)
                             .subscribeOn(Schedulers.io())
                             .map { search ->
                                 search.relatedItems.filterIsInstance<StreamInfoItem>()
