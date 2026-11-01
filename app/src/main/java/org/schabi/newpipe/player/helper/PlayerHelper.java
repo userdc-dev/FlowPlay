@@ -181,33 +181,16 @@ public final class PlayerHelper {
      * instead of showing an empty list while a single stream is playing.
      */
     @Nullable
-    public static PlayQueue autoQueueOf(@NonNull final StreamInfo info,
+    public static PlayQueue autoQueueOf(@NonNull final Context context,
+                                        @NonNull final StreamInfo info,
                                         @NonNull final List<PlayQueueItem> existingItems) {
-        final Set<String> seenUrls = existingItems.stream()
-                .map(PlayQueueItem::getUrl)
-                .collect(Collectors.toSet());
-
         final List<InfoItem> relatedItems = info.getRelatedItems();
         if (Utils.isNullOrEmpty(relatedItems)) {
             return null;
         }
-
-        final List<StreamInfoItem> nextItems = new ArrayList<>();
-        for (final InfoItem related : relatedItems) {
-            if (!(related instanceof StreamInfoItem)) {
-                continue;
-            }
-            final StreamInfoItem stream = (StreamInfoItem) related;
-            final String url = stream.getUrl();
-            if (url == null || url.isEmpty() || !seenUrls.add(url)) {
-                continue;
-            }
-            nextItems.add(stream);
-            if (nextItems.size() == 4) {
-                break;
-            }
-        }
-
+        final List<StreamInfoItem> nextItems =
+                org.schabi.newpipe.util.FlowPlayRecommendations.pick(
+                        context, relatedItems, existingItems, 4);
         if (nextItems.isEmpty()) {
             return null;
         }
