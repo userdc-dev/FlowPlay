@@ -204,21 +204,38 @@ jobs:
           grep -q 'player.applyFlowPlayFeedback(info.getUrl(), info.getUploaderName(), false)' app/src/main/java/org/schabi/newpipe/fragments/detail/VideoDetailFragment.java
           echo "Phone playback buttons and Android Auto action share live skip/queue-refresh logic"
 
-      - name: Configure persistent signing if repository secrets exist
+      - name: Configure permanent signing (required for stable APKs)
         env:
           FLOWPLAY_SIGNING_KEYSTORE_BASE64: ${{ secrets.FLOWPLAY_SIGNING_KEYSTORE_BASE64 }}
+          FLOWPLAY_SIGNING_STORE_PASSWORD: ${{ secrets.FLOWPLAY_SIGNING_STORE_PASSWORD }}
+          FLOWPLAY_SIGNING_KEY_ALIAS: ${{ secrets.FLOWPLAY_SIGNING_KEY_ALIAS }}
+          FLOWPLAY_SIGNING_KEY_PASSWORD: ${{ secrets.FLOWPLAY_SIGNING_KEY_PASSWORD }}
+          FLOWPLAY_SIGNING_CERT_SHA256: ${{ secrets.FLOWPLAY_SIGNING_CERT_SHA256 }}
         shell: bash
         run: |
           set -euo pipefail
-          if [[ -n "${FLOWPLAY_SIGNING_KEYSTORE_BASE64}" ]]; then
-            printf '%s' "${FLOWPLAY_SIGNING_KEYSTORE_BASE64}" | base64 --decode > "$RUNNER_TEMP/flowplay-signing.jks"
-            echo "FLOWPLAY_KEYSTORE_FILE=$RUNNER_TEMP/flowplay-signing.jks" >> "$GITHUB_ENV"
-            echo "Using private FlowPlay signing certificate"
+          if [[ -z "$FLOWPLAY_SIGNING_KEYSTORE_BASE64" ]]; then
+            echo "FLOWPLAY_SIGNING_READY=false" >> "$GITHUB_ENV"
+            echo "::notice::No private signing certificate configured: refusing to publish another incompatible APK."
+            echo "### No FlowPlay APK published" >> "$GITHUB_STEP_SUMMARY"
+            echo "A permanent signing certificate has not been configured. This is intentional: releasing another disposable debug-signed APK would break in-place updates." >> "$GITHUB_STEP_SUMMARY"
+            echo "Run scripts/setup-flowplay-signing.ps1 on your own Windows PC, then rerun this workflow." >> "$GITHUB_STEP_SUMMARY"
           else
-            echo "::warning::Signing secrets are missing: disposable debug APKs cannot reliably install over previous builds"
+            for required in FLOWPLAY_SIGNING_STORE_PASSWORD FLOWPLAY_SIGNING_KEY_ALIAS FLOWPLAY_SIGNING_KEY_PASSWORD FLOWPLAY_SIGNING_CERT_SHA256; do
+              if [[ -z "${!required}" ]]; then
+                echo "::error::Missing GitHub Actions secret: $required"
+                exit 1
+              fi
+            done
+            printf '%s' "$FLOWPLAY_SIGNING_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/flowplay-signing.jks"
+            test -s "$RUNNER_TEMP/flowplay-signing.jks"
+            chmod 600 "$RUNNER_TEMP/flowplay-signing.jks"
+            echo "FLOWPLAY_KEYSTORE_FILE=$RUNNER_TEMP/flowplay-signing.jks" >> "$GITHUB_ENV"
+            echo "FLOWPLAY_SIGNING_READY=true" >> "$GITHUB_ENV"
+            echo "Permanent FlowPlay release signing is configured"
           fi
-
       - name: Build FlowPlay APK (monotonic version code)
+        if: env.FLOWPLAY_SIGNING_READY == 'true'
         env:
           FLOWPLAY_SIGNING_STORE_PASSWORD: ${{ secrets.FLOWPLAY_SIGNING_STORE_PASSWORD }}
           FLOWPLAY_SIGNING_KEY_ALIAS: ${{ secrets.FLOWPLAY_SIGNING_KEY_ALIAS }}
@@ -230,6 +247,7 @@ jobs:
             "-DversionNameSuffix=-flow-v2.$GITHUB_RUN_NUMBER"
 
       - name: Verify APK and name downloadable file
+        if: env.FLOWPLAY_SIGNING_READY == 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -241,7 +259,28 @@ jobs:
           sha256sum dist/Flow_Play_v2_Reliability.apk | tee dist/SHA256SUMS.txt
           "$ANDROID_HOME/build-tools/36.0.0/aapt" dump badging dist/Flow_Play_v2_Reliability.apk | head -n 5
 
+      - name: Verify permanent APK signing certificate
+        if: env.FLOWPLAY_SIGNING_READY == 'true'
+        env:
+          FLOWPLAY_SIGNING_CERT_SHA256: ${{ secrets.FLOWPLAY_SIGNING_CERT_SHA256 }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          apk="dist/Flow_Play_v2_Reliability.apk"
+          verifier="$ANDROID_HOME/build-tools/36.0.0/apksigner"
+          "$verifier" verify --verbose --print-certs "$apk" > "$RUNNER_TEMP/flowplay-apk-certificate.txt"
+          actual="$(sed -n 's/.*Signer #1 certificate SHA-256 digest: //p' "$RUNNER_TEMP/flowplay-apk-certificate.txt" | head -n 1 | tr -d ':' | tr '[:upper:]' '[:lower:]')"
+          expected="$(printf '%s' "$FLOWPLAY_SIGNING_CERT_SHA256" | tr -d ':' | tr '[:upper:]' '[:lower:]')"
+          if [[ ! "$actual" =~ ^[0-9a-f]{64}$ || "$actual" != "$expected" ]]; then
+            echo "::error::Signing certificate SHA256 mismatch; refusing to release an APK that cannot safely update existing installations."
+            exit 1
+          fi
+          echo "### FlowPlay signing certificate verified" >> "$GITHUB_STEP_SUMMARY"
+          echo "Signed APK certificate SHA-256: $actual" >> "$GITHUB_STEP_SUMMARY"
+          echo "The permanent certificate matches the repository's fingerprint secret." >> "$GITHUB_STEP_SUMMARY"
+
       - name: Upload APK artifact
+        if: env.FLOWPLAY_SIGNING_READY == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: FlowPlay-v2-APK
@@ -250,6 +289,7 @@ jobs:
           retention-days: 30
 
       - name: Publish stable GitHub release
+        if: env.FLOWPLAY_SIGNING_READY == 'true'
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
@@ -260,7 +300,7 @@ jobs:
           gh release create "$tag" dist/Flow_Play_v2_Reliability.apk dist/SHA256SUMS.txt \
             --target "$GITHUB_SHA" \
             --title "FlowPlay v2 — Build $GITHUB_RUN_NUMBER" \
-            --notes "FlowPlay v2: visible phone player thumbs, unified Android Auto/notification/thumbs feedback, immediate removal/re-ranking of automatic Up Next tracks and skip-on-dislike. All previous features remain, including audio-only data saver, queue recovery and playlist health. Android Auto host may hide custom actions in overflow; physical head unit not tested. Test signing key can prevent in-place upgrades."
+            --notes "Permanently signed FlowPlay build: stable app package and certificate verified before publication. Existing features preserved: phone and Android Auto thumbs feedback, instant skip-on-dislike, continuous queue, audio data savings and playlist health. One-time migration required from test-signed v2.8, because Android will not allow an update signed by a different certificate. Google Play Protect may still recommend a scan for sideloaded APKs."
           # Multiple CI runs can finish out of order. Point latest to the highest
           # numbered v2 release, not whichever workflow happened to finish last.
           highest="$(gh release list --limit 50 --json tagName --jq '.[].tagName' \
