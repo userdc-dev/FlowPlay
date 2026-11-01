@@ -115,7 +115,10 @@ jobs:
           grep -q 'nextCount > 2' "$player"
           grep -q 'autoQueue.getStreams()' "$player"
           grep -q 'new SinglePlayQueue(nextItems, 0)' "$helper"
-          grep -q 'nextItems.size() == 4' "$helper"
+          grep -q 'FlowPlayRecommendations.pick' "$helper"
+          grep -q 'FlowPlayRecommendations.markPlayed' "$player"
+          grep -q 'FlowPlaySessionStore.save' "$player"
+          grep -q 'transientRetryCount' "$player"
           grep -q 'item.setAutoQueued(true)' "$helper"
           grep -q 'remove(streams.size() - 1)' "$queue"
           grep -q 'flowplay_related_queue_migrated_v1' app/src/main/java/org/schabi/newpipe/App.kt
