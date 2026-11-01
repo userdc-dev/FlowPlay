@@ -19,6 +19,11 @@
         app:showAsAction="never" />
 
     <item
+        android:id="@+id/menu_item_health_check"
+        android:title="@string/flowplay_playlist_health_title"
+        app:showAsAction="never" />
+
+    <item
         android:id="@+id/menu_item_remove_duplicates"
         android:title="@string/remove_duplicates"
         app:showAsAction="never" />

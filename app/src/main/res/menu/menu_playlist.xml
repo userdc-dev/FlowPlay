@@ -34,4 +34,8 @@
         android:orderInCategory="3"
         android:title="@string/add_to_playlist"
         app:showAsAction="never" />
+    <item
+        android:id="@+id/menu_item_health_check"
+        android:title="@string/flowplay_playlist_health_title"
+        app:showAsAction="never" />
 </menu>

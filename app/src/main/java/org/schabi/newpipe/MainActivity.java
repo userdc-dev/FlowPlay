@@ -88,6 +88,7 @@ import org.schabi.newpipe.util.KioskTranslator;
 import org.schabi.newpipe.util.Localization;
 import org.schabi.newpipe.util.NavigationHelper;
 import org.schabi.newpipe.util.PermissionHelper;
+import org.schabi.newpipe.util.FlowPlaySessionStore;
 import org.schabi.newpipe.util.FlowPlayOverlayOnboarding;
 import org.schabi.newpipe.util.ReleaseVersionUtil;
 import org.schabi.newpipe.util.SerializedCache;
@@ -119,6 +120,7 @@ public class MainActivity extends AppCompatActivity {
 
     private static final int MENU_ID_AUDIO_OUTPUT = 0x734c0001;
     private static final int MENU_ID_TRANSFER = 0x734c0010;
+    private static final int MENU_ID_RESUME_LAST = 0x734c0020;
     private static final int ITEM_ID_SUBSCRIPTIONS = -1;
     private static final int ITEM_ID_FEED = -2;
     private static final int ITEM_ID_BOOKMARKS = -3;
@@ -271,6 +273,11 @@ public class MainActivity extends AppCompatActivity {
 
         // One direct link to the EXISTING Settings > Backup and restore screen.
         // No popup menu, expanding groups or duplicate import/export handlers.
+        if (FlowPlaySessionStore.hasSession(this)) {
+            menu.add(R.id.menu_tabs_group, MENU_ID_RESUME_LAST, ORDER,
+                            R.string.flowplay_resume_last)
+                    .setIcon(R.drawable.ic_history);
+        }
         menu.add(R.id.menu_transfer_group, MENU_ID_TRANSFER, ORDER,
                         R.string.flowplay_data_transfer)
                 .setIcon(R.drawable.ic_settings_backup_restore);
@@ -296,7 +303,12 @@ public class MainActivity extends AppCompatActivity {
 
     private boolean drawerItemSelected(final MenuItem item) {
         final int groupId = item.getGroupId();
-        if (item.getItemId() == MENU_ID_TRANSFER) {
+        if (item.getItemId() == MENU_ID_RESUME_LAST) {
+            final PlayQueue savedQueue = FlowPlaySessionStore.restore(this);
+            if (savedQueue != null) {
+                NavigationHelper.playOnBackgroundPlayer(this, savedQueue, true);
+            }
+        } else if (item.getItemId() == MENU_ID_TRANSFER) {
             // Reuse the working backup/restore settings fragment directly.
             final Intent intent = new Intent(this, SettingsActivity.class);
             intent.putExtra(SettingsActivity.EXTRA_FLOWPLAY_BACKUP_ACTION,

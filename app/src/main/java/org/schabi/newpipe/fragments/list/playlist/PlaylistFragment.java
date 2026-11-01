@@ -48,6 +48,7 @@ import org.schabi.newpipe.local.playlist.RemotePlaylistManager;
 import org.schabi.newpipe.player.playqueue.PlayQueue;
 import org.schabi.newpipe.player.playqueue.PlaylistPlayQueue;
 import org.schabi.newpipe.util.ExtractorHelper;
+import org.schabi.newpipe.util.FlowPlayUnavailableStreams;
 import org.schabi.newpipe.util.Localization;
 import org.schabi.newpipe.util.NavigationHelper;
 import org.schabi.newpipe.util.PlayButtonHelper;
@@ -57,6 +58,8 @@ import org.schabi.newpipe.util.text.TextEllipsizer;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
@@ -228,10 +231,35 @@ public class PlaylistFragment extends BaseListInfoFragment<StreamInfoItem, Playl
         return ExtractorHelper.getPlaylistInfo(serviceId, url, forceLoad);
     }
 
+    private void showPlaylistHealth() {
+        if (infoListAdapter == null) return;
+        final Set<String> seen = new HashSet<>();
+        int scanned = 0;
+        int duplicates = 0;
+        int unavailable = 0;
+        for (final InfoItem item : infoListAdapter.getItemsList()) {
+            if (!(item instanceof StreamInfoItem)) continue;
+            final StreamInfoItem stream = (StreamInfoItem) item;
+            scanned++;
+            if (!seen.add(stream.getUrl())) duplicates++;
+            if (FlowPlayUnavailableStreams.isUnavailable(requireContext(),
+                    stream.getName(), stream.getUrl())) unavailable++;
+        }
+        new androidx.appcompat.app.AlertDialog.Builder(requireContext())
+                .setTitle(R.string.flowplay_playlist_health_title)
+                .setMessage(getString(R.string.flowplay_playlist_health_summary,
+                        scanned, duplicates, unavailable))
+                .setPositiveButton(R.string.ok, null)
+                .show();
+    }
+
     @Override
     public boolean onOptionsItemSelected(final MenuItem item) {
         final int itemId = item.getItemId();
-        if (itemId == R.id.action_settings) {
+        if (itemId == R.id.menu_item_health_check) {
+            showPlaylistHealth();
+            return true;
+        } else if (itemId == R.id.action_settings) {
             NavigationHelper.openSettings(requireContext());
         } else if (itemId == R.id.menu_item_openInBrowser) {
             ShareUtils.openUrlInBrowser(requireContext(), url);

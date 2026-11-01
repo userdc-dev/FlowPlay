@@ -45,6 +45,8 @@ import org.schabi.newpipe.util.CarConnectionTracker
 import org.schabi.newpipe.util.ChannelTabHelper
 import org.schabi.newpipe.util.ExtractorHelper
 import org.schabi.newpipe.util.ServiceHelper
+import org.schabi.newpipe.util.FlowPlaySessionStore
+import org.schabi.newpipe.util.FlowPlayUnavailableStreams
 import org.schabi.newpipe.util.image.ImageStrategy
 
 /**
@@ -111,9 +113,9 @@ class MediaBrowserImpl(
         CarConnectionTracker.noteMediaBrowserClient(clientPackageName)
 
         if (rootHints?.getBoolean(EXTRA_RECENT, false) == true) {
-            // the system is asking for a root to do media resumption, but we can't handle that yet,
-            // see https://developer.android.com/media/implement/surfaces/mobile#mediabrowserservice_implementation
-            return null
+            // Android Auto can now browse and resume recently played streams via
+            // our existing history IDs and PlaybackPreparer.
+            return MediaBrowserServiceCompat.BrowserRoot(ID_HISTORY, Bundle())
         }
 
         val extras = Bundle()
@@ -202,6 +204,11 @@ class MediaBrowserImpl(
                         // Car home, most useful entries first so they appear
                         // directly on head units which truncate the home list.
                         createRootMediaItem(
+                            ID_CONTINUE,
+                            "Continue Listening",
+                            R.drawable.ic_history_white
+                        ),
+                        createRootMediaItem(
                             ID_RELATED,
                             "Related to Recent",
                             R.drawable.ic_smart_display
@@ -220,6 +227,11 @@ class MediaBrowserImpl(
                             ID_DISCOVER_MIXED,
                             "Explore music & playlists",
                             R.drawable.ic_playlist_play
+                        ),
+                        createRootMediaItem(
+                            ID_SUBSCRIPTIONS,
+                            "Subscriptions",
+                            R.drawable.ic_subscriptions
                         ),
                         createRootMediaItem(
                             ID_WHATS_NEW,
@@ -248,6 +260,11 @@ class MediaBrowserImpl(
 
                 ID_RELATED -> {
                     if (path.isEmpty()) return populateRelatedToRecent()
+                    throw parseError(parentId)
+                }
+
+                ID_CONTINUE -> {
+                    if (path.isEmpty()) return populateContinueListening()
                     throw parseError(parentId)
                 }
 
@@ -574,10 +591,27 @@ class MediaBrowserImpl(
             }.subscribeOn(Schedulers.io())
     }
 
+    private fun populateContinueListening(): Single<List<MediaBrowserCompat.MediaItem>> {
+        return populateHistory().map { history ->
+            // Saved queue is local-only. If present, put the interrupted track first;
+            // history offers the next most useful resume choices.
+            val saved = FlowPlaySessionStore.restore(context)?.item
+            val resumeItem = if (saved != null) {
+                createInfoItemMediaItem(
+                    StreamInfoItem(saved.serviceId, saved.url, saved.title, saved.streamType)
+                )
+            } else null
+            (listOfNotNull(resumeItem) + history).take(20)
+        }
+    }
+
     private fun populateHistory(): Single<List<MediaBrowserCompat.MediaItem>> {
         val history = database.streamHistoryDAO().history.firstOrError()
         return history.map { items ->
-            items.map { this.createHistoryMediaItem(it) }
+            items.filterNot {
+                FlowPlayUnavailableStreams.isUnavailable(context,
+                    it.streamEntity.title, it.streamEntity.url)
+            }.map { this.createHistoryMediaItem(it) }
         }
     }
 
@@ -615,8 +649,11 @@ class MediaBrowserImpl(
     private fun populateLocalPlaylist(playlistId: Long): Single<List<MediaBrowserCompat.MediaItem>> {
         val playlist = LocalPlaylistManager(database).getPlaylistStreams(playlistId).firstOrError()
         return playlist.map { items ->
-            items.mapIndexed { index, item ->
-                createLocalPlaylistStreamMediaItem(playlistId, item, index)
+            items.mapIndexedNotNull { index, item ->
+                // Keep the ORIGINAL index for playback even when hiding a broken entry.
+                if (FlowPlayUnavailableStreams.isUnavailable(context,
+                        item.streamEntity.title, item.streamEntity.url)) null
+                else createLocalPlaylistStreamMediaItem(playlistId, item, index)
             }
         }
     }
@@ -627,8 +664,9 @@ class MediaBrowserImpl(
             .map {
                 // ignore it.errors, i.e. ignore errors about specific items, since there would
                 // be no way to show the error properly in Android Auto anyway
-                it.relatedItems.mapIndexed { index, item ->
-                    createRemotePlaylistStreamMediaItem(playlistId, item, index)
+                it.relatedItems.mapIndexedNotNull { index, item ->
+                    if (FlowPlayUnavailableStreams.isUnavailable(context, item.name, item.url)) null
+                    else createRemotePlaylistStreamMediaItem(playlistId, item, index)
                 }
             }
     }

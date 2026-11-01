@@ -658,10 +658,17 @@ public class DownloadDialog extends DialogFragment
                 ? View.VISIBLE : View.GONE);
 
         prefs = PreferenceManager.getDefaultSharedPreferences(requireContext());
-        final String defaultMedia = prefs.getString(getString(R.string.last_used_download_type),
+        final String mediaKey = getString(R.string.last_used_download_type);
+        final String defaultMedia = prefs.getString(mediaKey,
                 getString(R.string.last_download_type_video_key));
+        // Audio-first on the first download; thereafter respect the user's choice.
+        final boolean preferAudioFirst = !prefs.contains(mediaKey)
+                && prefs.getBoolean("flowplay_v2_prefer_audio_download", true);
 
-        if (isVideoStreamsAvailable
+        if (isAudioStreamsAvailable && preferAudioFirst) {
+            dialogBinding.audioButton.setChecked(true);
+            setupAudioSpinner();
+        } else if (isVideoStreamsAvailable
                 && (defaultMedia.equals(getString(R.string.last_download_type_video_key)))) {
             dialogBinding.videoButton.setChecked(true);
             setupVideoSpinner();

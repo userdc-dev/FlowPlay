@@ -57,6 +57,19 @@ configure<ApplicationExtension> {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    // FlowPlay stable signing, configured through GitHub Actions Secrets.
+    signingConfigs {
+        create("flowplay") {
+            val location = System.getenv("FLOWPLAY_KEYSTORE_FILE")
+            if (!location.isNullOrBlank()) {
+                storeFile = file(location)
+                storePassword = System.getenv("FLOWPLAY_SIGNING_STORE_PASSWORD")
+                keyAlias = System.getenv("FLOWPLAY_SIGNING_KEY_ALIAS")
+                keyPassword = System.getenv("FLOWPLAY_SIGNING_KEY_PASSWORD")
+            }
+        }
+    }
+
     buildTypes {
         debug {
             isDebuggable = true
@@ -86,17 +99,14 @@ configure<ApplicationExtension> {
 
         register("continuous") {
             initWith(getByName("release"))
-            signingConfig = signingConfigs.getByName("debug")
-            isDefault = true
-
-            // suffix the app id and the app name with git branch name
-            if (normalizedWorkingBranch.isEmpty() || workingBranch in defaultBranches) {
-                applicationIdSuffix = ".continuous"
-                resValue("string", "app_name", "Flow Play")
+            signingConfig = if (System.getenv("FLOWPLAY_KEYSTORE_FILE").isNullOrBlank()) {
+                signingConfigs.getByName("debug")
             } else {
-                applicationIdSuffix = ".continuous.$normalizedWorkingBranch"
-                resValue("string", "app_name", "Flow Play")
+                signingConfigs.getByName("flowplay")
             }
+            isDefault = true
+            applicationIdSuffix = ".continuous.flowplay"
+            resValue("string", "app_name", "Flow Play")
         }
     }
 

@@ -124,6 +124,8 @@ import org.schabi.newpipe.util.ExtractorHelper;
 import org.schabi.newpipe.util.ListHelper;
 import org.schabi.newpipe.util.NavigationHelper;
 import org.schabi.newpipe.util.SerializedCache;
+import org.schabi.newpipe.util.FlowPlaySessionStore;
+import org.schabi.newpipe.util.FlowPlayRecommendations;
 import org.schabi.newpipe.util.StreamTypeUtil;
 import org.schabi.newpipe.util.image.CoilHelper;
 
@@ -237,6 +239,8 @@ public final class Player implements PlaybackListener, Listener {
      * minimized to background and will change to the original player type automatically.
      */
     private boolean isAudioOnly = false;
+    private String lastFailedStreamUrl = "";
+    private int transientRetryCount = 0;
     private boolean isPrepared = false;
 
     /*//////////////////////////////////////////////////////////////////////////
@@ -700,6 +704,10 @@ public final class Player implements PlaybackListener, Listener {
         }
 
         saveStreamProgressState();
+        if (!exoPlayerIsNull() && playQueue != null && !isLive()) {
+            FlowPlaySessionStore.save(context, playQueue,
+                    simpleExoPlayer.getContentPosition(), true);
+        }
         setRecovery();
         stopActivityBinding();
 
@@ -1029,7 +1037,10 @@ public final class Player implements PlaybackListener, Listener {
         if (exoPlayerIsNull()) {
             return;
         }
-
+        if (playQueue != null && !isLive()) {
+            FlowPlaySessionStore.save(context, playQueue,
+                    simpleExoPlayer.getContentPosition(), false);
+        }
         onUpdateProgress(Math.max((int) simpleExoPlayer.getCurrentPosition(), 0),
                 (int) simpleExoPlayer.getDuration(), simpleExoPlayer.getBufferedPercentage());
     }
@@ -1583,9 +1594,33 @@ public final class Player implements PlaybackListener, Listener {
             case ERROR_CODE_IO_NETWORK_CONNECTION_FAILED:
             case ERROR_CODE_IO_NETWORK_CONNECTION_TIMEOUT:
             case ERROR_CODE_UNSPECIFIED:
-                // Reload playback on unexpected errors:
-                setRecovery();
-                reloadPlayQueueManager();
+                // Retry a transient failure twice, then skip instead of repeatedly
+                // interrupting playback (especially on Android Auto).
+                final String failedUrl = playQueue != null && playQueue.getItem() != null
+                        ? playQueue.getItem().getUrl() : "";
+                if (failedUrl.equals(lastFailedStreamUrl)) {
+                    transientRetryCount++;
+                } else {
+                    lastFailedStreamUrl = failedUrl;
+                    transientRetryCount = 1;
+                }
+                if (transientRetryCount <= 2 && !exoPlayerIsNull()) {
+                    setRecovery();
+                    final int retry = transientRetryCount;
+                    new Handler(Looper.getMainLooper()).postDelayed(() -> {
+                        if (!exoPlayerIsNull() && playQueue != null
+                                && playQueue.getItem() != null
+                                && failedUrl.equals(playQueue.getItem().getUrl())) {
+                            reloadPlayQueueManager();
+                        }
+                    }, 800L * retry);
+                    isCatchableException = true;
+                } else if (playQueue != null && playQueue.size() > 1) {
+                    playQueue.error();
+                    isCatchableException = true;
+                } else {
+                    onPlaybackShutdown();
+                }
                 break;
             default:
                 // API, remote and renderer errors belong here:
@@ -1679,6 +1714,9 @@ public final class Player implements PlaybackListener, Listener {
                 || !currentItem.getUrl().equals(item.getUrl());
 
         currentItem = item;
+        // A new stream gets its own retry allowance.
+        lastFailedStreamUrl = "";
+        transientRetryCount = 0;
 
         if (playQueueIndex != playQueue.getIndex()) {
             // wrong window (this should be impossible, as this method is called with
@@ -1922,6 +1960,7 @@ public final class Player implements PlaybackListener, Listener {
         }
 
         maybeAutoQueueNextStream(info);
+        FlowPlayRecommendations.markPlayed(context, info.getUrl());
 
         loadCurrentThumbnail(info.getThumbnails());
         registerStreamViewed();
@@ -1992,7 +2031,7 @@ public final class Player implements PlaybackListener, Listener {
             return;
         }
 
-        final PlayQueue autoQueue = PlayerHelper.autoQueueOf(info, playQueue.getStreams());
+        final PlayQueue autoQueue = PlayerHelper.autoQueueOf(context, info, playQueue.getStreams());
         if (autoQueue != null && !autoQueue.getStreams().isEmpty()) {
             playQueue.append(autoQueue.getStreams());
         }
@@ -2025,7 +2064,10 @@ public final class Player implements PlaybackListener, Listener {
     @Override // own playback listener
     @Nullable
     public MediaSource sourceOf(final PlayQueueItem item, final StreamInfo info) {
-        if (audioPlayerSelected()) {
+        // Background and Android Auto should transfer only the separate audio track
+        // when available. The resolver retains a video-with-audio fallback when needed.
+        if (audioPlayerSelected() || (isAudioOnly && prefs.getBoolean(
+                "flowplay_v2_audio_only_background", true))) {
             return audioResolver.resolve(info);
         }
 

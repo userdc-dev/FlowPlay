@@ -57,6 +57,7 @@ import org.schabi.newpipe.local.BaseLocalListFragment;
 import org.schabi.newpipe.player.playqueue.PlayQueue;
 import org.schabi.newpipe.player.playqueue.SinglePlayQueue;
 import org.schabi.newpipe.util.DeviceUtils;
+import org.schabi.newpipe.util.FlowPlayUnavailableStreams;
 import org.schabi.newpipe.util.Localization;
 import org.schabi.newpipe.util.NavigationHelper;
 import org.schabi.newpipe.util.OnClickGesture;
@@ -68,6 +69,8 @@ import org.schabi.newpipe.util.external_communication.ShareUtils;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Supplier;
 
@@ -388,10 +391,46 @@ public class LocalPlaylistFragment extends BaseLocalListFragment<List<PlaylistSt
             openRemoveWatchedConfirmationDialog();
         } else if (item.getItemId() == R.id.menu_item_remove_duplicates) {
             openRemoveDuplicatesDialog();
+        } else if (item.getItemId() == R.id.menu_item_health_check) {
+            showPlaylistHealth();
         } else {
             return super.onOptionsItemSelected(item);
         }
         return true;
+    }
+
+    /**
+     * A non-destructive local health check. Avoids probing YouTube item by item,
+     * which would be slow and could trigger rate limiting.
+     */
+    private void showPlaylistHealth() {
+        if (itemListAdapter == null) {
+            return;
+        }
+        final Set<String> seen = new HashSet<>();
+        int scanned = 0;
+        int duplicates = 0;
+        int unavailable = 0;
+        for (final LocalItem localItem : itemListAdapter.getItemsList()) {
+            if (!(localItem instanceof PlaylistStreamEntry)) {
+                continue;
+            }
+            final StreamEntity stream = ((PlaylistStreamEntry) localItem).getStreamEntity();
+            scanned++;
+            if (!seen.add(stream.getUrl())) {
+                duplicates++;
+            }
+            if (FlowPlayUnavailableStreams.isUnavailable(requireContext(),
+                    stream.getTitle(), stream.getUrl())) {
+                unavailable++;
+            }
+        }
+        new AlertDialog.Builder(requireContext())
+                .setTitle(R.string.flowplay_playlist_health_title)
+                .setMessage(getString(R.string.flowplay_playlist_health_summary,
+                        scanned, duplicates, unavailable))
+                .setPositiveButton(R.string.ok, null)
+                .show();
     }
 
     /**

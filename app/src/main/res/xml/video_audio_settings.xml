@@ -42,6 +42,27 @@
         app:iconSpaceReserved="false" />
 
     <SwitchPreferenceCompat
+        android:defaultValue="true"
+        android:key="flowplay_v2_audio_only_background"
+        android:title="@string/flowplay_audio_only_title"
+        android:summary="@string/flowplay_audio_only_summary"
+        app:iconSpaceReserved="false" />
+
+    <SwitchPreferenceCompat
+        android:defaultValue="true"
+        android:key="flowplay_v2_avoid_recent"
+        android:title="@string/flowplay_avoid_recent_title"
+        android:summary="@string/flowplay_avoid_recent_summary"
+        app:iconSpaceReserved="false" />
+
+    <SwitchPreferenceCompat
+        android:defaultValue="true"
+        android:key="flowplay_v2_mix_artists"
+        android:title="@string/flowplay_mix_artists_title"
+        android:summary="@string/flowplay_mix_artists_summary"
+        app:iconSpaceReserved="false" />
+
+    <SwitchPreferenceCompat
         android:defaultValue="false"
         android:key="@string/show_higher_resolutions_key"
         android:summary="@string/show_higher_resolutions_summary"
@@ -189,7 +210,7 @@
             app:iconSpaceReserved="false" />
 
         <SwitchPreferenceCompat
-            android:defaultValue="false"
+            android:defaultValue="true"
             android:key="@string/resume_on_audio_focus_gain_key"
             android:summary="@string/resume_on_audio_focus_gain_summary"
             android:title="@string/resume_on_audio_focus_gain_title"

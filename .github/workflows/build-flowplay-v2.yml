@@ -1,0 +1,227 @@
+name: Build FlowPlay v2 Reliability APK
+
+on:
+  push:
+    branches:
+      - flowplay-v2-reliability
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  android-apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout FlowPlay source
+        uses: actions/checkout@v4
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Recolour launcher icons for all Android versions
+        run: |
+          python3 -m pip install --user Pillow
+          python3 scripts/recolor_launcher.py
+
+      - name: Install Android SDK command-line tools and Android 37
+        shell: bash
+        run: |
+          set -euo pipefail
+          export ANDROID_HOME="$RUNNER_TEMP/flowplay-android-sdk"
+          export ANDROID_SDK_ROOT="$ANDROID_HOME"
+          echo "ANDROID_HOME=$ANDROID_HOME" >> "$GITHUB_ENV"
+          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT" >> "$GITHUB_ENV"
+          mkdir -p "$ANDROID_HOME/cmdline-tools"
+          curl --fail --location --retry 3 --silent --show-error \
+            "https://dl.google.com/android/repository/commandlinetools-linux-15859902_latest.zip" \
+            -o "$RUNNER_TEMP/commandlinetools.zip"
+          echo "4e4c464f145a7512b57d088ac6c278c03c9eea610886b35a5e0804e74eedf583  $RUNNER_TEMP/commandlinetools.zip" | sha256sum --check
+          unzip -q "$RUNNER_TEMP/commandlinetools.zip" -d "$RUNNER_TEMP/flowplay-cli"
+          mv "$RUNNER_TEMP/flowplay-cli/cmdline-tools" "$ANDROID_HOME/cmdline-tools/latest"
+          sdkmanager="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          yes | "$sdkmanager" --sdk_root="$ANDROID_HOME" --licenses > /dev/null || true
+          "$sdkmanager" --sdk_root="$ANDROID_HOME" --install "platforms;android-37.0" "build-tools;36.0.0" "platform-tools"
+
+      - name: Verify Android Auto browse source
+        shell: bash
+        run: |
+          set -euo pipefail
+          src="app/src/main/java/org/schabi/newpipe/player/mediabrowser/MediaBrowserImpl.kt"
+          grep -q 'FeedDatabaseManager(context).getStreams' "$src"
+          grep -q 'ID_SUBSCRIPTIONS ->' "$src"
+          grep -q 'ID_TRENDING ->' "$src"
+          grep -q 'populateSubscriptionStreams' "$src"
+          grep -q 'ID_DISCOVER, ID_DISCOVER_MIXED ->' "$src"
+          echo "Home, subscriptions and discover handlers confirmed"
+
+      - name: Verify Android Auto search and playlist actions
+        shell: bash
+        run: |
+          set -euo pipefail
+          src="app/src/main/java/org/schabi/newpipe/player/mediabrowser/MediaBrowserImpl.kt"
+          service="app/src/main/java/org/schabi/newpipe/player/PlayerService.java"
+          grep -q 'private fun searchForCar' "$src"
+          grep -q 'CAR_SAVE_ACTION' "$src"
+          grep -q 'appendToPlaylist' "$src"
+          grep -q 'createPlaylist' "$src"
+          grep -q 'BROWSER_SERVICE_EXTRAS_KEY_CUSTOM_BROWSER_ACTION_ROOT_LIST' "$src"
+          grep -q 'Related to Recent' "$src"
+          grep -q 'mediaBrowserImpl.onCustomAction' "$service"
+          grep -q 'CarSaveActionProvider' app/src/main/java/org/schabi/newpipe/player/mediasession/MediaSessionPlayerUi.java
+          echo "Search filters, car playlist saves and recommendations verified"
+
+      - name: Verify Android native audio output menu
+        shell: bash
+        run: |
+          set -euo pipefail
+          file="app/src/main/java/org/schabi/newpipe/MainActivity.java"
+          grep -q 'MENU_ID_AUDIO_OUTPUT' "$file"
+          grep -q 'MediaRouter2.getInstance(this).showSystemOutputSwitcher()' "$file"
+          grep -q 'showPhoneAudioOutputSwitcher()' "$file"
+          echo "Android native output picker menu and fallback verified"
+
+      - name: Verify Flow Play four-tab UI and mobile data saver
+        shell: bash
+        run: |
+          set -euo pipefail
+          tabs="app/src/main/java/org/schabi/newpipe/settings/tabs/TabsJsonHelper.java"
+          browser="app/src/main/java/org/schabi/newpipe/player/mediabrowser/MediaBrowserImpl.kt"
+          data="app/src/main/java/org/schabi/newpipe/util/ListHelper.java"
+          grep -q 'Tab.Type.LIVE.getTab()' "$tabs"
+          grep -q 'Tab.Type.FEED.getTab()' "$tabs"
+          grep -q 'Related to Recent' "$browser"
+          grep -q '"PLAYLISTS"' "$browser"
+          grep -q '"Explore music & playlists"' "$browser"
+          grep -q 'CarConnectionTracker.isRecentlyConnected()' "$data"
+          grep -q 'NET_CAPABILITY_VALIDATED' "$data"
+          grep -q 'limit_mobile_data_usage_value">360p' app/src/main/res/values/settings_keys.xml
+          grep -q 'flowplay_android_auto_low_quality_key' app/src/main/res/xml/video_audio_settings.xml
+          test "$(grep -c 'android:visible="false"' app/src/main/res/menu/menu_feed_fragment.xml)" = 2
+          echo "Default feed bottom tabs, clean top bar and 360p data-saver verified"
+
+      - name: Verify continuous autoplay queue logic
+        shell: bash
+        run: |
+          set -euo pipefail
+          player="app/src/main/java/org/schabi/newpipe/player/Player.java"
+          helper="app/src/main/java/org/schabi/newpipe/player/helper/PlayerHelper.java"
+          queue="app/src/main/java/org/schabi/newpipe/player/playqueue/PlayQueue.java"
+          prefs="app/src/main/res/xml/video_audio_settings.xml"
+          grep -q 'nextCount > 2' "$player"
+          grep -q 'autoQueue.getStreams()' "$player"
+          grep -q 'new SinglePlayQueue(nextItems, 0)' "$helper"
+          grep -q 'nextItems.size() == 4' "$helper"
+          grep -q 'item.setAutoQueued(true)' "$helper"
+          grep -q 'remove(streams.size() - 1)' "$queue"
+          grep -q 'flowplay_related_queue_migrated_v1' app/src/main/java/org/schabi/newpipe/App.kt
+          grep -A1 'android:defaultValue="true"' "$prefs" | grep -q 'auto_queue_key'
+          grep -q 'setQueue(queue)' app/src/main/java/org/schabi/newpipe/player/mediasession/PlayQueueNavigator.java
+          echo "Continuous related playback, user queue priority and Android Auto media queue verified"
+
+      - name: Verify simple menu and direct backup shortcut
+        shell: bash
+        run: |
+          set -euo pipefail
+          main="app/src/main/java/org/schabi/newpipe/MainActivity.java"
+          settings="app/src/main/java/org/schabi/newpipe/settings/SettingsActivity.java"
+          grep -q 'MENU_ID_TRANSFER' "$main"
+          grep -q 'SettingsActivity.FLOWPLAY_BACKUP_OPEN' "$main"
+          grep -q 'FLOWPLAY_BACKUP_OPEN = "backup_open"' "$settings"
+          grep -q 'new BackupRestoreSettingsFragment()' "$settings"
+          grep -q 'menu.add(R.id.menu_kiosks_group' "$main"
+          ! grep -q 'MENU_ID_MORE' "$main"
+          ! grep -q 'moreExpanded' "$main"
+          ! grep -q 'transferExpanded' "$main"
+          ! grep -q 'setGroupVisible' "$main"
+          ! grep -q 'toggleServices()' "$main"
+          ! grep -q 'drawer_header_service_icon' app/src/main/res/layout/drawer_header.xml
+          ! grep -q 'drawer_header_action_button' app/src/main/res/layout/drawer_header.xml
+          echo "Direct Backup and restore link, always-visible bottom kiosks and clean Flow Play branding verified"
+
+      - name: Verify YouTube-only links and unavailable playlist handling
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import xml.etree.ElementTree as ET
+          manifest = ET.parse("app/src/main/AndroidManifest.xml")
+          android = "{http://schemas.android.com/apk/res/android}"
+          hosts = {e.attrib[android+"host"] for e in manifest.iter("data") if android+"host" in e.attrib}
+          allowed = {"youtube.com", "m.youtube.com", "www.youtube.com",
+                     "music.youtube.com", "youtu.be", "www.youtube-nocookie.com"}
+          assert hosts <= allowed, sorted(hosts - allowed)
+          assert {"youtube.com","youtu.be","music.youtube.com"} <= hosts
+          ET.parse("app/src/main/res/values/strings.xml")
+          print("YouTube supported hosts only:", sorted(hosts))
+          PY
+          grep -q 'FlowPlayOverlayOnboarding' app/src/main/java/org/schabi/newpipe/MainActivity.java
+          grep -q 'ACTION_APPLICATION_DETAILS_SETTINGS' app/src/main/java/org/schabi/newpipe/util/FlowPlayOverlayOnboarding.java
+          grep -q 'ACTION_MANAGE_OVERLAY_PERMISSION' app/src/main/java/org/schabi/newpipe/util/FlowPlayOverlayOnboarding.java
+          grep -q 'ContentNotAvailableException' app/src/main/java/org/schabi/newpipe/util/FlowPlayUnavailableStreams.java
+          grep -q 'FlowPlayUnavailableStreams.isUnavailable' app/src/main/java/org/schabi/newpipe/info_list/holder/StreamMiniInfoItemHolder.java
+          grep -q 'FlowPlayUnavailableStreams.isUnavailable' app/src/main/java/org/schabi/newpipe/local/holder/LocalPlaylistStreamItemHolder.java
+          grep -q 'rememberIfConfirmedUnavailable' app/src/main/java/org/schabi/newpipe/fragments/detail/VideoDetailFragment.java
+          echo "YouTube link filtering, unavailable labels and overlay onboarding verified"
+
+      - name: Configure persistent signing if repository secrets exist
+        env:
+          FLOWPLAY_SIGNING_KEYSTORE_BASE64: ${{ secrets.FLOWPLAY_SIGNING_KEYSTORE_BASE64 }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -n "${FLOWPLAY_SIGNING_KEYSTORE_BASE64}" ]]; then
+            printf '%s' "${FLOWPLAY_SIGNING_KEYSTORE_BASE64}" | base64 --decode > "$RUNNER_TEMP/flowplay-signing.jks"
+            echo "FLOWPLAY_KEYSTORE_FILE=$RUNNER_TEMP/flowplay-signing.jks" >> "$GITHUB_ENV"
+            echo "Using private FlowPlay signing certificate"
+          else
+            echo "::warning::Signing secrets are missing: disposable debug APKs cannot reliably install over previous builds"
+          fi
+
+      - name: Build FlowPlay APK (monotonic version code)
+        env:
+          FLOWPLAY_SIGNING_STORE_PASSWORD: ${{ secrets.FLOWPLAY_SIGNING_STORE_PASSWORD }}
+          FLOWPLAY_SIGNING_KEY_ALIAS: ${{ secrets.FLOWPLAY_SIGNING_KEY_ALIAS }}
+          FLOWPLAY_SIGNING_KEY_PASSWORD: ${{ secrets.FLOWPLAY_SIGNING_KEY_PASSWORD }}
+        run: |
+          chmod +x gradlew
+          ./gradlew :app:assembleContinuous --no-daemon --stacktrace \
+            "-DversionCodeOverride=$((20000000 + GITHUB_RUN_NUMBER))" \
+            "-DversionNameSuffix=-flow-v2.$GITHUB_RUN_NUMBER"
+
+      - name: Verify APK and name downloadable file
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          source_apk="$(find app/build/outputs/apk/continuous -name '*.apk' -type f | head -n 1)"
+          test -n "$source_apk" && test -s "$source_apk"
+          cp "$source_apk" dist/Flow_Play_v2_Reliability.apk
+          unzip -tq dist/Flow_Play_v2_Reliability.apk
+          sha256sum dist/Flow_Play_v2_Reliability.apk | tee dist/SHA256SUMS.txt
+          "$ANDROID_HOME/build-tools/36.0.0/aapt" dump badging dist/Flow_Play_v2_Reliability.apk | head -n 5
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: FlowPlay-v2-APK
+          path: dist/
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Publish stable GitHub release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          tag="flow-play-v2-$GITHUB_RUN_NUMBER"
+          gh release create "$tag" dist/Flow_Play_v2_Reliability.apk dist/SHA256SUMS.txt \
+            --target "$GITHUB_SHA" \
+            --title "FlowPlay v2 — Build $GITHUB_RUN_NUMBER" \
+            --notes "FlowPlay v2: stable package ID, GitHub update checking, audio-only driving, smarter queues, bounded playback retries, improved Android Auto, session recovery, playlist checking and offline-friendly downloads. Keep the signing key in Actions Secrets for in-place upgrades. APK not tested on a physical Android Auto head unit."

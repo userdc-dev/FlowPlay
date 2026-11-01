@@ -16,6 +16,7 @@ import androidx.work.WorkManager
 import androidx.work.Worker
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
+import com.grack.nanojson.JsonObject
 import com.grack.nanojson.JsonParser
 import com.grack.nanojson.JsonParserException
 import java.io.IOException
@@ -89,11 +90,6 @@ class NewVersionWorker(
 
     @Throws(IOException::class, ReCaptchaException::class)
     private fun checkNewVersion() {
-        // Check if the current apk is a github one or not.
-        if (!ReleaseVersionUtil.isReleaseApk) {
-            return
-        }
-
         if (!inputData.getBoolean(IS_MANUAL, false)) {
             val prefs = PreferenceManager.getDefaultSharedPreferences(applicationContext)
             // Check if the last request has happened a certain time ago
@@ -104,8 +100,8 @@ class NewVersionWorker(
             }
         }
 
-        // Make a network request to get latest NewPipe data.
-        val response = DownloaderImpl.getInstance().get(NEWPIPE_API_URL)
+        // Fetch only FlowPlay APKs, never upstream NewPipe release binaries.
+        val response = DownloaderImpl.getInstance().get(FLOWPLAY_RELEASES_URL)
         handleResponse(response)
     }
 
@@ -124,22 +120,22 @@ class NewVersionWorker(
             }
         }
 
-        // Parse the json from the response.
         try {
-            val newpipeVersionInfo = JsonParser.`object`()
-                .from(response.responseBody()).getObject("flavors")
-                .getObject("newpipe")
-
-            val versionName = newpipeVersionInfo.getString("version")
-            val versionCode = newpipeVersionInfo.getInt("version_code")
-            val apkLocationUrl = newpipeVersionInfo.getString("apk")
-            compareAppVersionAndShowNotification(versionName, apkLocationUrl, versionCode)
-        } catch (e: JsonParserException) {
-            // Most likely something is wrong in data received from NEWPIPE_API_URL.
-            // Do not alarm user and fail silently.
-            if (DEBUG) {
-                Log.w(TAG, "Could not get NewPipe API: invalid json", e)
+            val releaseInfo = JsonParser.`object`().from(response.responseBody())
+            val tag = releaseInfo.getString("tag_name") ?: return
+            val releaseNumber = tag.removePrefix("flow-play-v2-").toIntOrNull()
+                ?.takeIf { tag.startsWith("flow-play-v2-") } ?: return
+            val apkUrl = releaseInfo.getArray("assets")
+                ?.mapNotNull { (it as? JsonObject)?.getString("browser_download_url") }
+                ?.firstOrNull { it.endsWith(".apk", ignoreCase = true) }
+            if (apkUrl != null) {
+                compareAppVersionAndShowNotification(
+                    "FlowPlay v2 (build $releaseNumber)",
+                    apkUrl, 20000000 + releaseNumber
+                )
             }
+        } catch (e: JsonParserException) {
+            Log.w(TAG, "Invalid FlowPlay GitHub release metadata", e)
         }
     }
 
@@ -159,7 +155,8 @@ class NewVersionWorker(
     companion object {
         private val DEBUG = MainActivity.DEBUG
         private val TAG = NewVersionWorker::class.java.simpleName
-        private const val NEWPIPE_API_URL = "https://newpipe.net/api/data.json"
+        private const val FLOWPLAY_RELEASES_URL =
+            "https://api.github.com/repos/userdc-dev/FlowPlay/releases/latest"
         private const val IS_MANUAL = "isManual"
 
         /**
