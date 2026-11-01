@@ -197,7 +197,7 @@ public class MainActivity extends AppCompatActivity {
         }
         if (!UpdateSettingsFragment.wasUserAskedForConsent(this)
                 && !App.getInstance().isFirstRun()
-                && ReleaseVersionUtil.INSTANCE.isReleaseApk()) {
+                ) {
             UpdateSettingsFragment.askForConsentToUpdateChecks(this);
         }
 
@@ -427,6 +427,15 @@ public class MainActivity extends AppCompatActivity {
             }
             sharedPrefEditor.putBoolean(Constants.KEY_MAIN_PAGE_CHANGE, false).apply();
             NavigationHelper.openMainActivity(this);
+        }
+
+        if (FlowPlaySessionStore.hasSession(this)
+                && drawerLayoutBinding.navigation.getMenu().findItem(MENU_ID_RESUME_LAST) == null) {
+            try {
+                addDrawerMenuForCurrentService();
+            } catch (final Exception e) {
+                Log.w(TAG, "Could not refresh saved session shortcut", e);
+            }
         }
 
         final boolean isHistoryEnabled = sharedPreferences.getBoolean(
