@@ -300,6 +300,12 @@ public class MediaSessionPlayerUi extends PlayerUi
         updateMediaSessionActions();
     }
 
+    /** Re-announce feedback labels to the media session after any 👍/👎 action. */
+    public void refreshFeedbackActions() {
+        carSaveActionInstalled = false;
+        updateMediaSessionActions();
+    }
+
     @Override
     public void onPlayQueueEdited() {
         super.onPlayQueueEdited();

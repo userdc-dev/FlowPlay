@@ -36,6 +36,7 @@ import android.view.View;
 import android.widget.LinearLayout;
 import android.widget.RelativeLayout;
 import android.widget.SeekBar;
+import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -75,6 +76,7 @@ import org.schabi.newpipe.player.Player;
 import org.schabi.newpipe.player.gesture.BasePlayerGestureListener;
 import org.schabi.newpipe.player.gesture.DisplayPortion;
 import org.schabi.newpipe.player.helper.PlayerHelper;
+import org.schabi.newpipe.util.FlowPlayRecommendations;
 import org.schabi.newpipe.player.mediaitem.MediaItemTag;
 import org.schabi.newpipe.player.playback.SurfaceHolderCallback;
 import org.schabi.newpipe.player.playqueue.PlayQueue;
@@ -199,6 +201,7 @@ public abstract class VideoPlayerUi extends PlayerUi implements SeekBar.OnSeekBa
 
         binding.titleTextView.setSelected(true);
         binding.channelTextView.setSelected(true);
+        updateFlowPlayThumbs();
 
         // Prevent hiding of bottom sheet via swipe inside queue
         binding.itemsList.setNestedScrollingEnabled(false);
@@ -230,6 +233,20 @@ public abstract class VideoPlayerUi extends PlayerUi implements SeekBar.OnSeekBa
 
         binding.moreOptionsButton.setOnClickListener(
                 makeOnClickListener(this::onMoreOptionsClicked));
+        // 👍/👎 next to the seek bar are available on both music and video.
+        binding.flowPlayThumbUp.setOnClickListener(makeOnClickListener(() -> {
+            player.applyFlowPlayFeedback(true);
+            updateFlowPlayThumbs();
+            Toast.makeText(context, R.string.flowplay_recommend_more_saved,
+                    Toast.LENGTH_SHORT).show();
+        }));
+        binding.flowPlayThumbDown.setOnClickListener(makeOnClickListener(() -> {
+            player.applyFlowPlayFeedback(false);
+            updateFlowPlayThumbs();
+            Toast.makeText(context, R.string.flowplay_dislike_skipped,
+                    Toast.LENGTH_SHORT).show();
+        }));
+
         binding.share.setOnClickListener(makeOnClickListener(() -> {
             final PlayQueueItem currentItem = player.getCurrentItem();
             if (currentItem != null) {
@@ -308,6 +325,8 @@ public abstract class VideoPlayerUi extends PlayerUi implements SeekBar.OnSeekBa
         binding.moreOptionsButton.setOnLongClickListener(null);
         binding.share.setOnClickListener(null);
         binding.share.setOnLongClickListener(null);
+        binding.flowPlayThumbUp.setOnClickListener(null);
+        binding.flowPlayThumbDown.setOnClickListener(null);
         binding.fullScreenButton.setOnClickListener(null);
         binding.screenRotationButton.setOnClickListener(null);
         binding.playWithKodi.setOnClickListener(null);
@@ -391,6 +410,7 @@ public abstract class VideoPlayerUi extends PlayerUi implements SeekBar.OnSeekBa
     public void setupAfterIntent() {
         super.setupAfterIntent();
         setupElementsVisibility();
+        updateFlowPlayThumbs();
         setupElementsSize(context.getResources());
         binding.getRoot().setVisibility(View.VISIBLE);
         binding.playPauseButton.requestFocus();
@@ -1071,11 +1091,32 @@ public abstract class VideoPlayerUi extends PlayerUi implements SeekBar.OnSeekBa
     //////////////////////////////////////////////////////////////////////////*/
     //region Metadata & stream related views
 
+    /**
+     * Mark the local FlowPlay choice on the playing screen. This is intentionally
+     * distinct from YouTube's public like/dislike statistics.
+     */
+    private void updateFlowPlayThumbs() {
+        final PlayQueueItem item = player.getCurrentItem();
+        final int feedback = item == null ? 0
+                : FlowPlayRecommendations.feedbackFor(context, item.getUrl());
+        binding.flowPlayThumbUp.setAlpha(feedback == 1 ? 1.0f : 0.58f);
+        binding.flowPlayThumbDown.setAlpha(feedback == -1 ? 1.0f : 0.58f);
+        binding.flowPlayThumbUp.setSelected(feedback == 1);
+        binding.flowPlayThumbDown.setSelected(feedback == -1);
+    }
+
+    @Override
+    public void onPlayQueueEdited() {
+        super.onPlayQueueEdited();
+        updateFlowPlayThumbs();
+    }
+
     @Override
     public void onMetadataChanged(@NonNull final StreamInfo info) {
         super.onMetadataChanged(info);
 
         updateStreamRelatedViews();
+        updateFlowPlayThumbs();
 
         binding.titleTextView.setText(info.getName());
         binding.channelTextView.setText(info.getUploaderName());

@@ -148,10 +148,14 @@ public final class FlowPlayRecommendations {
             final boolean recentlyUsed = recentlyPlayed.contains(url);
             final boolean sameArtist = preferVariety
                     && !artist.isEmpty() && artists.getOrDefault(artist, 0) >= 2;
-            if (recentlyUsed || sameArtist) {
+            if (recentlyUsed) {
                 fallback.add(stream);
             } else if (favourites.contains(url) || favouriteUploaders.contains(artist)) {
+                // Explicit 👍 takes priority over variety limits, while avoiding
+                // the same stream already in the queue.
                 likedMatches.add(stream);
+            } else if (sameArtist) {
+                fallback.add(stream);
                 artists.put(artist, artists.getOrDefault(artist, 0) + 1);
             } else {
                 primary.add(stream);

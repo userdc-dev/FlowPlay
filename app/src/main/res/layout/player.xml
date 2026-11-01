@@ -522,6 +522,34 @@
                     android:visibility="gone"
                     tools:ignore="HardcodedText,RtlHardcoded,RtlSymmetry" />
 
+                <!-- Visible playback feedback, not hidden in the More menu. Both
+                     music and video playback share this player layout. -->
+                <androidx.appcompat.widget.AppCompatImageButton
+                    android:id="@+id/flowPlayThumbUp"
+                    android:layout_width="36dp"
+                    android:layout_height="40dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:clickable="true"
+                    android:contentDescription="@string/flowplay_recommend_more"
+                    android:focusable="true"
+                    android:padding="8dp"
+                    android:scaleType="fitCenter"
+                    android:src="@drawable/ic_thumb_up"
+                    app:tint="@color/white" />
+
+                <androidx.appcompat.widget.AppCompatImageButton
+                    android:id="@+id/flowPlayThumbDown"
+                    android:layout_width="36dp"
+                    android:layout_height="40dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:clickable="true"
+                    android:contentDescription="@string/flowplay_do_not_recommend"
+                    android:focusable="true"
+                    android:padding="8dp"
+                    android:scaleType="fitCenter"
+                    android:src="@drawable/ic_thumb_down"
+                    app:tint="@color/white" />
+
                 <androidx.appcompat.widget.AppCompatImageButton
                     android:id="@+id/screenRotationButton"
                     android:layout_width="40dp"

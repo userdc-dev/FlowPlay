@@ -482,14 +482,22 @@ public final class VideoDetailFragment
         binding.detailThumbsDownImgView.setContentDescription(
                 getString(R.string.flowplay_do_not_recommend));
         binding.detailThumbsUpImgView.setOnClickListener(makeOnClickListener(info -> {
-            FlowPlayRecommendations.recommendMore(requireContext(), info.getUrl(),
-                    info.getUploaderName() == null ? "" : info.getUploaderName());
+            if (player != null) {
+                player.applyFlowPlayFeedback(info.getUrl(), info.getUploaderName(), true);
+            } else {
+                FlowPlayRecommendations.recommendMore(requireContext(), info.getUrl(),
+                        info.getUploaderName() == null ? "" : info.getUploaderName());
+            }
             updateFlowPlayFeedbackButtons(info.getUrl());
             Toast.makeText(requireContext(), R.string.flowplay_recommend_more_saved,
                     Toast.LENGTH_SHORT).show();
         }));
         binding.detailThumbsDownImgView.setOnClickListener(makeOnClickListener(info -> {
-            FlowPlayRecommendations.avoid(requireContext(), info.getUrl());
+            if (player != null) {
+                player.applyFlowPlayFeedback(info.getUrl(), info.getUploaderName(), false);
+            } else {
+                FlowPlayRecommendations.avoid(requireContext(), info.getUrl());
+            }
             updateFlowPlayFeedbackButtons(info.getUrl());
             Toast.makeText(requireContext(), R.string.flowplay_do_not_recommend_saved,
                     Toast.LENGTH_SHORT).show();

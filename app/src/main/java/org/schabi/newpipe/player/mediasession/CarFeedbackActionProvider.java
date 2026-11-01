@@ -11,7 +11,6 @@ import com.google.android.exoplayer2.ext.mediasession.MediaSessionConnector;
 
 import org.schabi.newpipe.R;
 import org.schabi.newpipe.player.Player;
-import org.schabi.newpipe.util.FlowPlayRecommendations;
 
 /**
  * Opt-in local feedback on the current video or audio item, exposed to Android
@@ -24,14 +23,14 @@ public final class CarFeedbackActionProvider
     private static final String ACTION_DOWN = "org.schabi.newpipe.car.do-not-recommend";
 
     private final Player player;
-    private final Context appContext;
+    private final Context context;
     private final boolean positive;
 
     public CarFeedbackActionProvider(@NonNull final Player player,
                                      @NonNull final Context context,
                                      final boolean positive) {
         this.player = player;
-        this.appContext = context.getApplicationContext();
+        this.context = context.getApplicationContext();
         this.positive = positive;
     }
 
@@ -42,9 +41,14 @@ public final class CarFeedbackActionProvider
         if (player.getCurrentStreamInfo().isEmpty()) {
             return null;
         }
+        final String url = player.getCurrentStreamInfo().get().getUrl();
+        final int selected = org.schabi.newpipe.util.FlowPlayRecommendations.feedbackFor(
+                context, url);
         return new PlaybackStateCompat.CustomAction.Builder(
                 positive ? ACTION_UP : ACTION_DOWN,
-                positive ? "Like 👍" : "Dislike 👎",
+                positive
+                        ? (selected == 1 ? "👍 Recommended" : "👍 Recommend more")
+                        : (selected == -1 ? "👎 Not recommended" : "👎 Don't recommend"),
                 positive ? R.drawable.ic_thumb_up : R.drawable.ic_thumb_down
         ).build();
     }
@@ -57,13 +61,8 @@ public final class CarFeedbackActionProvider
         if (!ACTION_UP.equals(action) && !ACTION_DOWN.equals(action)) {
             return;
         }
-        player.getCurrentStreamInfo().ifPresent(info -> {
-            if (ACTION_UP.equals(action)) {
-                FlowPlayRecommendations.recommendMore(appContext, info.getUrl(),
-                        info.getUploaderName() == null ? "" : info.getUploaderName());
-            } else {
-                FlowPlayRecommendations.avoid(appContext, info.getUrl());
-            }
-        });
+        // Delegate to Player, which updates the queue and skips the disliked
+        // current item. Saving a preference without changing playback is not enough.
+        player.applyFlowPlayFeedback(ACTION_UP.equals(action));
     }
 }

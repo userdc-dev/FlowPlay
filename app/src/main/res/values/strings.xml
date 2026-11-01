@@ -35,6 +35,7 @@
     <string name="flowplay_recommend_more_saved">FlowPlay will favour similar videos and music in future recommendations.</string>
     <string name="flowplay_do_not_recommend">👎 Don’t recommend this video or song</string>
     <string name="flowplay_do_not_recommend_saved">FlowPlay will avoid recommending this item in future queues.</string>
+    <string name="flowplay_dislike_skipped">Skipped. FlowPlay will not recommend this item again.</string>
     <string name="flowplay_avoid_recent_title">Avoid recently played songs</string>
     <string name="flowplay_avoid_recent_summary">Use recent playback history to reduce repeated suggestions in Up Next.</string>
     <string name="flowplay_mix_artists_title">Mix different artists in recommendations</string>

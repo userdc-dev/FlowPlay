@@ -1861,6 +1861,78 @@ public final class Player implements PlaybackListener, Listener {
         triggerProgressUpdate();
     }
 
+    /**
+     * Apply feedback to the currently playing video or music item. Called from
+     * the player controls, media notification and Android Auto.
+     */
+    public void applyFlowPlayFeedback(final boolean positive) {
+        final PlayQueueItem playing = playQueue == null ? null : playQueue.getItem();
+        if (playing == null) {
+            return;
+        }
+        applyFlowPlayFeedback(playing.getUrl(), playing.getUploader(), positive);
+    }
+
+    /**
+     * Local FlowPlay feedback, not a YouTube account like/dislike.
+     * On dislike, immediately skip and rebuild only the automatic recommendations.
+     * Manually queued tracks are preserved unless they are the exact disliked URL.
+     */
+    public void applyFlowPlayFeedback(@NonNull final String url,
+                                      @Nullable final String uploader,
+                                      final boolean positive) {
+        if (Looper.myLooper() != Looper.getMainLooper()) {
+            new Handler(Looper.getMainLooper()).post(
+                    () -> applyFlowPlayFeedback(url, uploader, positive));
+            return;
+        }
+        if (url.isEmpty()) {
+            return;
+        }
+        if (positive) {
+            FlowPlayRecommendations.recommendMore(context, url,
+                    uploader == null ? "" : uploader);
+        } else {
+            FlowPlayRecommendations.avoid(context, url);
+        }
+
+        final PlayQueue queue = playQueue;
+        final PlayQueueItem current = queue == null ? null : queue.getItem();
+        if (queue != null && current != null && url.equals(current.getUrl())) {
+            // Invalidate outdated automatically generated Up Next entries so
+            // the new preference has an IMMEDIATE effect on the visible queue.
+            for (int i = queue.size() - 1; i > queue.getIndex(); i--) {
+                final PlayQueueItem next = queue.getItem(i);
+                if (next != null && (next.isAutoQueued()
+                        || (!positive && url.equals(next.getUrl())))) {
+                    queue.remove(i);
+                }
+            }
+
+            final StreamInfo info = getCurrentStreamInfo()
+                    .filter(stream -> url.equals(stream.getUrl())).orElse(null);
+            if (info != null) {
+                maybeAutoQueueNextStream(info);
+            }
+
+            if (!positive) {
+                // Do not let a one-item or finished queue wrap around to the
+                // video the user just rejected. Stop if there is no valid next.
+                if (queue.getIndex() < queue.size() - 1) {
+                    playNext();
+                } else {
+                    pause();
+                }
+            }
+        }
+
+        // Force Android Auto/notification to re-read the feedback action labels
+        // and let the phone player repaint its selected 👍/👎 state.
+        UIs.call(PlayerUi::onPlayQueueEdited);
+        UIs.get(MediaSessionPlayerUi.class)
+                .ifPresent(MediaSessionPlayerUi::refreshFeedbackActions);
+    }
+
     public void playNext() {
         if (DEBUG) {
             Log.d(TAG, "onPlayNext() called");
