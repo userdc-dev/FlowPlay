@@ -7,6 +7,7 @@ import static org.schabi.newpipe.util.SparseItemUtil.fetchUploaderUrlIfSparse;
 
 import android.content.Context;
 import android.net.Uri;
+import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.StringRes;
@@ -21,6 +22,7 @@ import org.schabi.newpipe.local.dialog.PlaylistAppendDialog;
 import org.schabi.newpipe.local.dialog.PlaylistDialog;
 import org.schabi.newpipe.local.history.HistoryRecordManager;
 import org.schabi.newpipe.util.NavigationHelper;
+import org.schabi.newpipe.util.FlowPlayRecommendations;
 import org.schabi.newpipe.util.external_communication.KoreUtils;
 import org.schabi.newpipe.util.external_communication.ShareUtils;
 
@@ -110,6 +112,12 @@ public enum StreamDialogDefaultEntry {
 
     PLAY_WITH_KODI(R.string.play_with_kodi_title, (fragment, item) ->
             KoreUtils.playWithKore(fragment.requireContext(), Uri.parse(item.getUrl()))),
+
+    DO_NOT_RECOMMEND(R.string.flowplay_do_not_recommend, (fragment, item) -> {
+        FlowPlayRecommendations.avoid(fragment.requireContext(), item.getUrl());
+        Toast.makeText(fragment.requireContext(), R.string.flowplay_do_not_recommend_saved,
+                Toast.LENGTH_SHORT).show();
+    }),
 
     SHARE(R.string.share, (fragment, item) ->
             ShareUtils.shareText(fragment.requireContext(), item.getName(), item.getUrl(),
