@@ -53,6 +53,19 @@ Until these five secrets are present, GitHub Actions **will not publish another
 debug-signed APK as a stable FlowPlay update**. This prevents repeatedly
 offering releases that are guaranteed to fail an install-over upgrade.
 
+## Build again after installing the signing secrets
+
+You can trigger the next signed release from a terminal already authenticated
+with the GitHub CLI:
+
+```powershell
+gh workflow run build-flowplay-v2.yml --repo userdc-dev/FlowPlay --ref flowplay-v2-reliability
+```
+
+The workflow will verify the finished APK's certificate SHA-256 fingerprint
+against the private repository secret **before** publishing it. The secret
+setup does not automatically start a build.
+
 ## First migration from v2.8's temporary certificate
 
 1. In the existing app: **Settings → Backup and restore → Export**.
