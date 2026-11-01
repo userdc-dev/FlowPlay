@@ -109,6 +109,7 @@ import org.schabi.newpipe.util.Constants;
 import org.schabi.newpipe.util.DeviceUtils;
 import org.schabi.newpipe.util.ExtractorHelper;
 import org.schabi.newpipe.util.FlowPlayUnavailableStreams;
+import org.schabi.newpipe.util.FlowPlayRecommendations;
 import org.schabi.newpipe.util.InfoCache;
 import org.schabi.newpipe.util.ListHelper;
 import org.schabi.newpipe.util.Localization;
@@ -461,8 +462,38 @@ public final class VideoDetailFragment
     // OnClick
     //////////////////////////////////////////////////////////////////////////*/
 
+    private void updateFlowPlayFeedbackButtons(final String url) {
+        if (getContext() == null || binding == null) {
+            return;
+        }
+        final int selected = FlowPlayRecommendations.feedbackFor(requireContext(), url);
+        binding.detailThumbsUpImgView.setAlpha(selected == 1 ? 1.0f : 0.55f);
+        binding.detailThumbsDownImgView.setAlpha(selected == -1 ? 1.0f : 0.55f);
+        binding.detailThumbsUpImgView.setSelected(selected == 1);
+        binding.detailThumbsDownImgView.setSelected(selected == -1);
+    }
+
     private void setOnClickListeners() {
         binding.detailTitleRootLayout.setOnClickListener(v -> toggleTitleAndSecondaryControls());
+        // Existing visible thumbs icons now record local FlowPlay feedback for ANY
+        // video or music stream, never YouTube account likes/dislikes.
+        binding.detailThumbsUpImgView.setContentDescription(
+                getString(R.string.flowplay_recommend_more));
+        binding.detailThumbsDownImgView.setContentDescription(
+                getString(R.string.flowplay_do_not_recommend));
+        binding.detailThumbsUpImgView.setOnClickListener(makeOnClickListener(info -> {
+            FlowPlayRecommendations.recommendMore(requireContext(), info.getUrl(),
+                    info.getUploaderName() == null ? "" : info.getUploaderName());
+            updateFlowPlayFeedbackButtons(info.getUrl());
+            Toast.makeText(requireContext(), R.string.flowplay_recommend_more_saved,
+                    Toast.LENGTH_SHORT).show();
+        }));
+        binding.detailThumbsDownImgView.setOnClickListener(makeOnClickListener(info -> {
+            FlowPlayRecommendations.avoid(requireContext(), info.getUrl());
+            updateFlowPlayFeedbackButtons(info.getUrl());
+            Toast.makeText(requireContext(), R.string.flowplay_do_not_recommend_saved,
+                    Toast.LENGTH_SHORT).show();
+        }));
         binding.detailUploaderRootLayout.setOnClickListener(makeOnClickListener(info -> {
             if (isEmpty(info.getSubChannelUrl())) {
                 if (!isEmpty(info.getUploaderUrl())) {
@@ -1599,6 +1630,12 @@ public final class VideoDetailFragment
             }
             binding.detailThumbsDisabledView.setVisibility(View.GONE);
         }
+
+        // These are local FlowPlay buttons, even when YouTube hides like totals.
+        binding.detailThumbsUpImgView.setVisibility(View.VISIBLE);
+        binding.detailThumbsDownImgView.setVisibility(View.VISIBLE);
+        binding.detailThumbsDisabledView.setVisibility(View.GONE);
+        updateFlowPlayFeedbackButtons(info.getUrl());
 
         if (info.getDuration() > 0) {
             binding.detailDurationView.setText(Localization.getDurationString(info.getDuration()));

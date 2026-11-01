@@ -324,6 +324,7 @@ public final class InfoItemDialog {
             addAllEntries(
                     StreamDialogDefaultEntry.DOWNLOAD,
                     StreamDialogDefaultEntry.APPEND_PLAYLIST,
+                    StreamDialogDefaultEntry.RECOMMEND_MORE,
                     StreamDialogDefaultEntry.DO_NOT_RECOMMEND,
                     StreamDialogDefaultEntry.SHARE,
                     StreamDialogDefaultEntry.OPEN_IN_BROWSER

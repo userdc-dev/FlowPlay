@@ -24,6 +24,8 @@ public final class FlowPlayRecommendations {
     public static final String MORE_ARTISTS = "flowplay_v2_mix_artists";
     private static final String RECENT_KEY = "flowplay_v2_recent_streams";
     private static final String SKIPPED_KEY = "flowplay_v2_skipped_streams";
+    private static final String LIKED_KEY = "flowplay_v2_liked_streams";
+    private static final String FAVOURITE_UPLOADERS_KEY = "flowplay_v2_liked_uploaders";
     private static final int HISTORY_SIZE = 35;
 
     private FlowPlayRecommendations() { }
@@ -45,16 +47,64 @@ public final class FlowPlayRecommendations {
         prefs.edit().putString(RECENT_KEY, String.join("\n", history)).apply();
     }
 
-    /** Action for future thumbs-down UI, avoiding unwanted tracks without a remote account. */
+    /** Local-only feedback. It does not upload likes to YouTube or modify playlists. */
+    public static void recommendMore(@NonNull final Context context,
+                                     @NonNull final String url,
+                                     @NonNull final String uploader) {
+        if (url.isEmpty()) {
+            return;
+        }
+        final SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
+        final Set<String> liked = new HashSet<>(
+                prefs.getStringSet(LIKED_KEY, java.util.Collections.emptySet()));
+        final Set<String> avoided = new HashSet<>(
+                prefs.getStringSet(SKIPPED_KEY, java.util.Collections.emptySet()));
+        if (liked.size() > 200) {
+            liked.clear();
+        }
+        liked.add(url);
+        avoided.remove(url);
+        final Set<String> uploaders = new HashSet<>(
+                prefs.getStringSet(FAVOURITE_UPLOADERS_KEY, java.util.Collections.emptySet()));
+        if (!uploader.isBlank()) {
+            if (uploaders.size() > 100) {
+                uploaders.clear();
+            }
+            uploaders.add(uploader.trim().toLowerCase(java.util.Locale.ROOT));
+        }
+        prefs.edit().putStringSet(LIKED_KEY, liked)
+                .putStringSet(SKIPPED_KEY, avoided)
+                .putStringSet(FAVOURITE_UPLOADERS_KEY, uploaders).apply();
+    }
+
+    /** Locally hide this exact video/music URL from future automatic suggestions. */
     public static void avoid(@NonNull final Context context, @NonNull final String url) {
+        if (url.isEmpty()) {
+            return;
+        }
         final SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
         final Set<String> skipped = new HashSet<>(
                 prefs.getStringSet(SKIPPED_KEY, java.util.Collections.emptySet()));
+        final Set<String> liked = new HashSet<>(
+                prefs.getStringSet(LIKED_KEY, java.util.Collections.emptySet()));
         if (skipped.size() > 150) {
             skipped.clear();
         }
         skipped.add(url);
-        prefs.edit().putStringSet(SKIPPED_KEY, skipped).apply();
+        liked.remove(url);
+        prefs.edit().putStringSet(SKIPPED_KEY, skipped)
+                .putStringSet(LIKED_KEY, liked).apply();
+    }
+
+    /** -1 = thumbs down, +1 = thumbs up, 0 = no feedback. */
+    public static int feedbackFor(@NonNull final Context context,
+                                  @NonNull final String url) {
+        final SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
+        if (prefs.getStringSet(SKIPPED_KEY, java.util.Collections.emptySet()).contains(url)) {
+            return -1;
+        }
+        return prefs.getStringSet(LIKED_KEY, java.util.Collections.emptySet())
+                .contains(url) ? 1 : 0;
     }
 
     public static List<StreamInfoItem> pick(@NonNull final Context context,
@@ -75,6 +125,11 @@ public final class FlowPlayRecommendations {
             }
         }
         final boolean preferVariety = prefs.getBoolean(MORE_ARTISTS, true);
+        final Set<String> favourites = prefs.getStringSet(LIKED_KEY,
+                java.util.Collections.emptySet());
+        final Set<String> favouriteUploaders = prefs.getStringSet(FAVOURITE_UPLOADERS_KEY,
+                java.util.Collections.emptySet());
+        final List<StreamInfoItem> likedMatches = new ArrayList<>();
         final Map<String, Integer> artists = new HashMap<>();
         final List<StreamInfoItem> primary = new ArrayList<>();
         final List<StreamInfoItem> fallback = new ArrayList<>();
@@ -95,13 +150,17 @@ public final class FlowPlayRecommendations {
                     && !artist.isEmpty() && artists.getOrDefault(artist, 0) >= 2;
             if (recentlyUsed || sameArtist) {
                 fallback.add(stream);
+            } else if (favourites.contains(url) || favouriteUploaders.contains(artist)) {
+                likedMatches.add(stream);
+                artists.put(artist, artists.getOrDefault(artist, 0) + 1);
             } else {
                 primary.add(stream);
                 artists.put(artist, artists.getOrDefault(artist, 0) + 1);
             }
         }
         // Never leave the queue empty just because all matches were heard recently.
-        primary.addAll(fallback);
-        return primary.subList(0, Math.min(target, primary.size()));
+        likedMatches.addAll(primary);
+        likedMatches.addAll(fallback);
+        return likedMatches.subList(0, Math.min(target, likedMatches.size()));
     }
 }

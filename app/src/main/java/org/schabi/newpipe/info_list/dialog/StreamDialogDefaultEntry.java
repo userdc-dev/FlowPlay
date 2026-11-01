@@ -113,6 +113,13 @@ public enum StreamDialogDefaultEntry {
     PLAY_WITH_KODI(R.string.play_with_kodi_title, (fragment, item) ->
             KoreUtils.playWithKore(fragment.requireContext(), Uri.parse(item.getUrl()))),
 
+    RECOMMEND_MORE(R.string.flowplay_recommend_more, (fragment, item) -> {
+        FlowPlayRecommendations.recommendMore(fragment.requireContext(), item.getUrl(),
+                item.getUploaderName() == null ? "" : item.getUploaderName());
+        Toast.makeText(fragment.requireContext(), R.string.flowplay_recommend_more_saved,
+                Toast.LENGTH_SHORT).show();
+    }),
+
     DO_NOT_RECOMMEND(R.string.flowplay_do_not_recommend, (fragment, item) -> {
         FlowPlayRecommendations.avoid(fragment.requireContext(), item.getUrl());
         Toast.makeText(fragment.requireContext(), R.string.flowplay_do_not_recommend_saved,

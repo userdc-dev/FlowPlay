@@ -171,6 +171,20 @@ jobs:
           grep -q 'rememberIfConfirmedUnavailable' app/src/main/java/org/schabi/newpipe/fragments/detail/VideoDetailFragment.java
           echo "YouTube link filtering, unavailable labels and overlay onboarding verified"
 
+      - name: Verify FlowPlay thumbs feedback and release checker
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q 'FlowPlayRecommendations.recommendMore' app/src/main/java/org/schabi/newpipe/info_list/dialog/StreamDialogDefaultEntry.java
+          grep -q 'FlowPlayRecommendations.avoid' app/src/main/java/org/schabi/newpipe/info_list/dialog/StreamDialogDefaultEntry.java
+          grep -q 'detailThumbsUpImgView.setOnClickListener' app/src/main/java/org/schabi/newpipe/fragments/detail/VideoDetailFragment.java
+          grep -q 'detailThumbsDownImgView.setOnClickListener' app/src/main/java/org/schabi/newpipe/fragments/detail/VideoDetailFragment.java
+          grep -q 'CarFeedbackActionProvider(player, context, true)' app/src/main/java/org/schabi/newpipe/player/mediasession/MediaSessionPlayerUi.java
+          grep -q 'CarFeedbackActionProvider(player, context, false)' app/src/main/java/org/schabi/newpipe/player/mediasession/MediaSessionPlayerUi.java
+          grep -q 'JsonParser.array()' app/src/main/java/org/schabi/newpipe/NewVersionWorker.kt
+          grep -q 'flowplay_update_check_failed' app/src/main/res/values/strings.xml
+          echo "Local thumbs feedback, car controls and accurate FlowPlay update checker verified"
+
       - name: Configure persistent signing if repository secrets exist
         env:
           FLOWPLAY_SIGNING_KEYSTORE_BASE64: ${{ secrets.FLOWPLAY_SIGNING_KEYSTORE_BASE64 }}
@@ -227,4 +241,12 @@ jobs:
           gh release create "$tag" dist/Flow_Play_v2_Reliability.apk dist/SHA256SUMS.txt \
             --target "$GITHUB_SHA" \
             --title "FlowPlay v2 — Build $GITHUB_RUN_NUMBER" \
-            --notes "FlowPlay v2: stable package ID, GitHub update checking, audio-only driving, smarter queues, bounded playback retries, improved Android Auto, session recovery, playlist checking and offline-friendly downloads. Keep the signing key in Actions Secrets for in-place upgrades. APK not tested on a physical Android Auto head unit."
+            --notes "FlowPlay v2: thumbs up/down local recommendation feedback for all videos and music, Android Auto playback custom actions, correct FlowPlay-only update checking, plus queue recovery, audio data savings, playlist health and saved sessions. Android Auto host may hide custom actions in overflow. Physical head unit not tested; requires permanent signing key for install-over updates."
+          # Multiple CI runs can finish out of order. Point latest to the highest
+          # numbered v2 release, not whichever workflow happened to finish last.
+          highest="$(gh release list --limit 50 --json tagName --jq '.[].tagName' \
+            | sed -n 's/^flow-play-v2-\([0-9][0-9]*\)$/\1/p' \
+            | sort -nr | head -n 1)"
+          if [[ -n "$highest" ]]; then
+            gh release edit "flow-play-v2-$highest" --latest
+          fi

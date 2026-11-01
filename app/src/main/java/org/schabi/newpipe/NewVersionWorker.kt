@@ -120,22 +120,44 @@ class NewVersionWorker(
             }
         }
 
+        // GitHub's /releases/latest can point to an older build when CI jobs
+        // complete out of order. Choose the HIGHEST numbered FlowPlay release.
         try {
-            val releaseInfo = JsonParser.`object`().from(response.responseBody())
-            val tag = releaseInfo.getString("tag_name") ?: return
-            val releaseNumber = tag.removePrefix("flow-play-v2-").toIntOrNull()
-                ?.takeIf { tag.startsWith("flow-play-v2-") } ?: return
-            val apkUrl = releaseInfo.getArray("assets")
-                ?.mapNotNull { (it as? JsonObject)?.getString("browser_download_url") }
-                ?.firstOrNull { it.endsWith(".apk", ignoreCase = true) }
-            if (apkUrl != null) {
+            val releases = JsonParser.array().from(response.responseBody())
+            var newestVersion = -1
+            var newestApkUrl: String? = null
+            for (item in releases) {
+                val releaseInfo = item as? JsonObject ?: continue
+                val tag = releaseInfo.getString("tag_name") ?: continue
+                if (!tag.startsWith("flow-play-v2-")) continue
+                val version = tag.removePrefix("flow-play-v2-").toIntOrNull() ?: continue
+                val apk = releaseInfo.getArray("assets")
+                    ?.mapNotNull { (it as? JsonObject)?.getString("browser_download_url") }
+                    ?.firstOrNull { it.endsWith(".apk", ignoreCase = true) }
+                if (apk != null && version > newestVersion) {
+                    newestVersion = version
+                    newestApkUrl = apk
+                }
+            }
+            if (newestVersion >= 0 && newestApkUrl != null) {
                 compareAppVersionAndShowNotification(
-                    "FlowPlay v2 (build $releaseNumber)",
-                    apkUrl, 20000000 + releaseNumber
+                    "FlowPlay v2 (build $newestVersion)", newestApkUrl,
+                    20000000 + newestVersion
                 )
+            } else if (inputData.getBoolean(IS_MANUAL, false)) {
+                ContextCompat.getMainExecutor(applicationContext).execute {
+                    Toast.makeText(applicationContext,
+                        R.string.flowplay_update_check_failed, Toast.LENGTH_LONG).show()
+                }
             }
         } catch (e: JsonParserException) {
-            Log.w(TAG, "Invalid FlowPlay GitHub release metadata", e)
+            Log.w(TAG, "Invalid FlowPlay release metadata", e)
+            if (inputData.getBoolean(IS_MANUAL, false)) {
+                ContextCompat.getMainExecutor(applicationContext).execute {
+                    Toast.makeText(applicationContext,
+                        R.string.flowplay_update_check_failed, Toast.LENGTH_LONG).show()
+                }
+            }
         }
     }
 
@@ -144,7 +166,7 @@ class NewVersionWorker(
             checkNewVersion()
             Result.success()
         } catch (e: IOException) {
-            Log.w(TAG, "Could not fetch NewPipe API: probably network problem", e)
+            Log.w(TAG, "Could not fetch FlowPlay releases: probably a network problem", e)
             Result.failure()
         } catch (e: ReCaptchaException) {
             Log.e(TAG, "ReCaptchaException should never happen here.", e)
@@ -156,21 +178,13 @@ class NewVersionWorker(
         private val DEBUG = MainActivity.DEBUG
         private val TAG = NewVersionWorker::class.java.simpleName
         private const val FLOWPLAY_RELEASES_URL =
-            "https://api.github.com/repos/userdc-dev/FlowPlay/releases/latest"
+            "https://api.github.com/repos/userdc-dev/FlowPlay/releases?per_page=30"
         private const val IS_MANUAL = "isManual"
 
         /**
-         * Start a new worker which checks if all conditions for performing a version check are met,
-         * fetches the API endpoint [.NEWPIPE_API_URL] containing info about the latest NewPipe
-         * version and displays a notification about an available update if one is available.
-         * <br></br>
-         * Following conditions need to be met, before data is requested from the server:
-         *
-         *  *  The app is signed with the correct signing key (by TeamNewPipe / schabi).
-         * If the signing key differs from the one used upstream, the update cannot be installed.
-         *  * The user enabled searching for and notifying about updates in the settings.
-         *  * The app did not recently check for updates.
-         * We do not want to make unnecessary connections and DOS our servers.
+         * Check the user's own FlowPlay GitHub releases, not upstream NewPipe.
+         * The check respects automatic-update consent and manual invocations.
+         * Installation is always explicitly initiated by the user.
          */
         @JvmStatic
         fun enqueueNewVersionCheckingWork(context: Context, isManual: Boolean) {
