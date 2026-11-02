@@ -1,0 +1,66 @@
+name: Capture genuine Flow Play screenshots
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [dev]
+    paths:
+      - '.github/workflows/capture-flowplay-screenshots.yml'
+      - 'scripts/capture-flowplay-screenshots.sh'
+
+permissions:
+  contents: write
+
+jobs:
+  screenshots:
+    name: Run Flow Play in an Android emulator
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Check out Flow Play
+        uses: actions/checkout@v4
+
+      - name: Download the actual published Flow Play APK
+        run: |
+          curl -fL --retry 3 --retry-delay 5 \
+            --output flow-play-release.apk \
+            'https://github.com/userdc-dev/FlowPlay/releases/download/flow-play-home-360p-auto-0.29.1/Flow_Play_Home_360p_Auto_0.29.1.apk'
+          test "$(stat -c %s flow-play-release.apk)" -gt 10000000
+          unzip -tq flow-play-release.apk >/dev/null
+
+      - name: Enable hardware acceleration
+        run: |
+          if test -e /dev/kvm; then sudo chmod 666 /dev/kvm; fi
+
+      - name: Set up Android
+        uses: android-actions/setup-android@v3
+
+      - name: Capture genuine phone screens
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          profile: pixel_6
+          disable-animations: true
+          emulator-boot-timeout: 600
+          script: bash scripts/capture-flowplay-screenshots.sh
+
+      - name: Keep screenshot files as a workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: flow-play-real-phone-screenshots
+          path: screenshot-output/*.png
+          if-no-files-found: error
+
+      - name: Publish real screenshots to the Flow Play repository
+        run: |
+          mkdir -p docs/screenshots
+          cp screenshot-output/*.png docs/screenshots/
+          git add docs/screenshots
+          if ! git diff --cached --quiet; then
+            git config user.name 'github-actions[bot]'
+            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git commit -m 'docs: add genuine phone screenshots from published Flow Play APK'
+            git push origin HEAD:dev
+          fi
