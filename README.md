@@ -1,102 +1,68 @@
 # Flow Play
 
-**Your videos, music and subscriptions — without the clutter.**
+**Watch what you like. Listen wherever you go. Without the clutter.**
 
-Flow Play is a free, open-source Android app for watching YouTube videos and listening to music. It is made for people who want a simpler home screen, more control over playback, and an easier way to listen in the car.
+Flow Play is an independent, open-source Android app for watching YouTube videos, listening to music, following channels and taking your listening into the car with Android Auto. No Google account is needed to watch videos or follow channels.
 
-No YouTube or Google account is needed to watch, search, or follow channels in the app. Flow Play builds on the open-source work of NewPipe, but it has its own direction and features.
+[**Download the latest Flow Play APK**](https://github.com/userdc-dev/FlowPlay/releases/latest) · [Report a problem](https://github.com/userdc-dev/FlowPlay/issues) · [See the source code](https://github.com/userdc-dev/FlowPlay)
 
-**[Download Flow Play](https://github.com/userdc-dev/FlowPlay/releases) · [See the Home + Android Auto 360p build](https://github.com/userdc-dev/FlowPlay/releases/tag/flow-play-home-360p-auto-0.29.1) · [Report a problem or suggest an idea](https://github.com/userdc-dev/FlowPlay/issues)**
+## What you can do
 
-## What makes Flow Play different?
+- **Keep things simple.** Start from What's New, Subscriptions, Bookmarked Playlists or Live. Extra discovery sections sit at the bottom of the menu.
+- **Watch or just listen.** Switch between video, background audio and a popup player. Where possible, background playback downloads just the audio stream.
+- **Build your own listening queue.** Choose what plays next, browse related tracks and keep listening when one song finishes.
+- **Tell Flow Play what you like.** Use 👍 to favour similar videos or music, and 👎 to avoid a particular item and skip to the next available track. This feedback stays in Flow Play; it is *not* a YouTube account like or dislike.
+- **Keep your subscriptions without signing in.** Bring in subscriptions using supported imports, and back up your playlists, history and app settings.
+- **Listen in the car.** Android Auto includes Continue Listening, related tracks, saved playlists, a queue, and playback controls. Exact buttons and layouts depend on your vehicle.
+- **Save things for offline use.** Download video or audio where supported and choose audio-first download defaults.
+- **Pick up where you left off.** Resume a saved listening session after an interruption or restart.
 
-- **Less clutter.** Find the videos and channels you actually care about instead of wading through extra sections.
-- **Watch or just listen.** Play videos normally, use background playback, or choose audio-only listening when supported by your build.
-- **Make playback yours.** Adjust playback speed and video quality, manage what plays next, and save videos or playlists.
-- **Follow channels without signing in.** Keep your subscriptions in the app, and import them when moving from another supported app or backup.
-- **Save data.** Some builds offer mobile-data-friendly defaults so video doesn't use more data than you intended.
-- **Take your music into the car.** Experimental Android Auto support focuses on audio, playlists, browsing and hands-free listening.
+Flow Play is built around dependable playback and a clean dark interface. Some features require a network connection; YouTube service changes can sometimes interrupt playback.
 
-We care more about a reliable, easy-to-use app than filling it with settings and buttons.
+## Real Flow Play screenshots
 
-## On your phone
+These are **real Flow Play captures**, not NewPipe promotional images. The Android Auto gallery below contains photos supplied from an actual car display.
 
-The **Home + Android Auto 360p** build has a simpler four-tab home screen:
+### On your Android phone
 
-1. **What's New** — recent videos from channels you follow.
-2. **Subscriptions** — your channels in one place.
-3. **Bookmarked Playlists** — playlists you've saved for later.
-4. **Live** — find live content when you want it.
-
-That build also uses **360p as the default on mobile data** to help save data. You can still choose another quality where playback supports it.
-
-Other experimental Flow Play releases may have different layouts or features. Check the notes for the specific download you choose.
-
-## In your car with Android Auto
-
-Flow Play is also being developed for **listening while driving**, without needing to switch to a different music app.
-
-Depending on the build and your car's Android Auto support, you can:
-
-- Browse music, playlists and suggestions based on what you've listened to recently.
-- Search by voice, or use car-screen search when the car permits it.
-- Save tracks to **Car Saves** and open shortcuts to existing playlists.
-- Use like/dislike and playback controls where your car shows them.
-- Keep listening with the car display focused on audio.
-
-**Important:** Android Auto in Flow Play is for **audio, not watching video on the car screen**. Some controls depend on your car, and physical-head-unit testing is still ongoing.
-
-## Download and install
-
-**[See all Flow Play downloads](https://github.com/userdc-dev/FlowPlay/releases)**
-
-Looking for the specific 360p phone and Android Auto build?
-
-**[Download Flow_Play_Home_360p_Auto_0.29.1.apk](https://github.com/userdc-dev/FlowPlay/releases/download/flow-play-home-360p-auto-0.29.1/Flow_Play_Home_360p_Auto_0.29.1.apk)**
-
-To install it:
-
-1. Open the download link on your Android phone.
-2. Download the APK and open it.
-3. If Android asks, allow your browser or file manager to install apps.
-4. Open Flow Play and set it up the way you like.
-
-The **FlowPlay v2** releases also explore improved audio-only listening, queue recovery, playlist checks and playback feedback. You can find those on the same [Releases page](https://github.com/userdc-dev/FlowPlay/releases).
-
-**Before switching builds:** Back up your subscriptions, history and playlists using the app's backup/export options where available. Experimental releases may use different app identities or signing keys, so they may not always install as an update over an earlier version. Don't uninstall an older copy until you've saved anything important.
-
-Flow Play downloads are provided through **this repository's GitHub Releases**, not through NewPipe's download page or F-Droid listing.
-
-## Screenshots
-
-These screenshots were taken from the **published Flow Play Home + Android Auto 360p APK** running in an Android emulator. They are real captures, not mock-ups or old NewPipe promotional pictures.
-
-| Flow Play home | Navigation menu |
+| Home | Side menu |
 |:--:|:--:|
-| [![Flow Play home screen](docs/screenshots/01-flow-play-home.png)](docs/screenshots/01-flow-play-home.png) | [![Flow Play navigation menu](docs/screenshots/02-flow-play-navigation.png)](docs/screenshots/02-flow-play-navigation.png) |
+| [![Flow Play home screen](docs/screenshots/01-flow-play-home.png)](docs/screenshots/01-flow-play-home.png) | [![Flow Play navigation drawer](docs/screenshots/02-flow-play-navigation.png)](docs/screenshots/02-flow-play-navigation.png) |
 
-[See the original screenshots](docs/screenshots). The look may vary between builds and Android versions. Android Auto car-screen screenshots are not included yet.
+[Photo of the latest Flow Play side menu](docs/screenshots/03-flow-play-phone-menu.png), including the **Import / Export** shortcut.
 
-## What we're improving next
+### On Android Auto
 
-Flow Play is still a work in progress. Our focus is:
+| App launcher | Now Playing |
+|:--:|:--:|
+| [![Flow Play in Android Auto app launcher](docs/screenshots/04-flow-play-android-auto-launcher.jpg)](docs/screenshots/04-flow-play-android-auto-launcher.jpg) | [![Flow Play Android Auto now playing thumbs up and down](docs/screenshots/05-flow-play-android-auto-now-playing.jpg)](docs/screenshots/05-flow-play-android-auto-now-playing.jpg) |
 
-- Fewer playback failures, smoother background listening and better recovery after interruptions.
-- A tidier, darker interface that puts subscriptions and playlists first.
-- Better queues, related recommendations and continuous Shorts playback.
-- Easier downloads, updates, backup and restore.
-- More useful Android Auto browsing and controls, subject to what the car allows.
+| Continue Listening | Related tracks |
+|:--:|:--:|
+| [![Flow Play Continue Listening](docs/screenshots/06-flow-play-android-auto-continue.jpg)](docs/screenshots/06-flow-play-android-auto-continue.jpg) | [![Flow Play Android Auto related recommendations](docs/screenshots/07-flow-play-android-auto-related.jpg)](docs/screenshots/07-flow-play-android-auto-related.jpg) |
 
-These are **goals**, not a promise that every feature is already finished in every release.
+[More real Android Auto browsing](docs/screenshots/08-flow-play-android-auto-tracks.jpg).
 
-## Found a problem?
+*The Android Auto photos and phone-menu photo are contributed device screenshots and may need to be uploaded separately. The files above are the intended paths in this repository; the initial home/menu screenshots are already available.*
 
-Please [open a GitHub issue](https://github.com/userdc-dev/FlowPlay/issues) and tell us which APK you installed, your Android version, what you tried, and what happened. A real screenshot is especially helpful for layout problems.
+## Install and update
+
+1. Open the [latest Flow Play release](https://github.com/userdc-dev/FlowPlay/releases/latest) on your Android phone and download its APK.
+2. Open the file and follow Android's installation instructions. Google Play Protect may offer to scan a sideloaded app; review the result.
+3. Use **Import / Export** from Flow Play's side menu to back up or restore your playlists, subscriptions, history and settings.
+
+**About updates:** Flow Play v2.10 and newer releases use a permanent signing certificate and a stable Android package name. Once you've installed a release signed with that certificate, newer releases using the same key should install over it without losing your data.
+
+If your previous Flow Play copy was signed with an earlier temporary key (for example v2.8 or older), Android may require a **one-time backup, uninstall, reinstall and restore**. Keep the exported backup outside the app before uninstalling. [Read the signing and update guide](.github/FLOWPLAY_SIGNING.md).
+
+Android Auto is for **listening**, not watching video on the car screen. It should only be operated when safe; use voice or steering-wheel controls while driving.
+
+## What's next?
+
+The focus is smooth background playback, a useful Up Next queue, more reliable Android Auto browsing, less mobile data use and straightforward updates. Suggestions and bug reports are welcome in [GitHub Issues](https://github.com/userdc-dev/FlowPlay/issues).
 
 ## Credits and license
 
-Flow Play is an **independent, open-source project built on [NewPipe](https://github.com/TeamNewPipe/NewPipe)**. Thanks to the NewPipe developers and other open-source contributors whose work makes this possible.
+Flow Play is an independent project built on the open-source work of [NewPipe](https://github.com/TeamNewPipe/NewPipe). Many underlying features and components come from NewPipe and its contributors. Flow Play is not affiliated with or endorsed by YouTube, Google, Android Auto or NewPipe.
 
-Flow Play is not an official YouTube, Google, Android Auto or NewPipe app, and is not endorsed by those projects.
-
-The source is shared under the [GNU General Public License v3 or later](LICENSE).
+The project is distributed under the [GNU GPL v3 or later](LICENSE).
