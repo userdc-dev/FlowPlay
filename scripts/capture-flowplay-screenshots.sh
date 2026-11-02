@@ -16,16 +16,46 @@ fi
 package="${packages[0]}"
 echo "Installed Flow Play APK as: $package"
 
+# Android 13+ can show runtime permissions during the first launch. Grant a
+# normal notification permission before opening the app, when requested.
+adb shell pm grant "$package" android.permission.POST_NOTIFICATIONS 2>/dev/null || true
 adb shell monkey -p "$package" -c android.intent.category.LAUNCHER 1
-sleep 30
+sleep 10
 
-# Verify that the app, and not the Android launcher, is on screen.
-current="$(adb shell dumpsys activity activities | tr -d '\r' | grep -E 'mResumedActivity|topResumedActivity' || true)"
-echo "Foreground activity: $current"
+foreground_activity() {
+  adb shell dumpsys activity activities | tr -d '\r' | grep -E 'mResumedActivity|topResumedActivity' || true
+}
+
+# The Android permission controller is not a Flow Play crash.
+# Dismiss first-run system permission sheets and re-check the active app.
+for attempt in 1 2 3 4 5 6 7 8; do
+  current="$(foreground_activity)"
+  echo "Foreground activity (attempt $attempt): $current"
+  if [[ "$current" == *"$package"* ]]; then
+    break
+  fi
+  if [[ "$current" == *"com.google.android.permissioncontroller"* ||
+        "$current" == *"com.android.permissioncontroller"* ]]; then
+    adb shell input keyevent KEYCODE_BACK
+    sleep 4
+    continue
+  fi
+  if [[ "$current" == *"launcher"* || -z "$current" ]]; then
+    adb shell monkey -p "$package" -c android.intent.category.LAUNCHER 1
+    sleep 6
+    continue
+  fi
+  sleep 4
+done
+current="$(foreground_activity)"
+echo "Foreground activity after permissions: $current"
 if [[ "$current" != *"$package"* ]]; then
-  echo "Flow Play did not remain in the foreground; refusing misleading screenshots."
+  echo "Flow Play has not reached the foreground; refusing misleading screenshots."
   exit 1
 fi
+
+# Let the app finish first-run navigation before checking visible tabs.
+sleep 8
 
 # A real Flow Play home screen should expose the app's main tabs.
 adb shell uiautomator dump /sdcard/flowplay-ui.xml >/dev/null
