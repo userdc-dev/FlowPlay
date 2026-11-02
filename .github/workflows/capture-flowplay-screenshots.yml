@@ -36,12 +36,20 @@ jobs:
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 35
-          target: google_apis
+          target: default
           arch: x86_64
-          profile: pixel_6
+          profile: pixel_2
           disable-animations: true
           emulator-boot-timeout: 600
           script: bash scripts/capture-flowplay-screenshots.sh
+
+      - name: Upload emulator diagnostics only if capture fails
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: screenshot-debug-not-for-readme
+          path: screenshot-debug/*
+          if-no-files-found: warn
 
       - name: Keep screenshot files as a workflow artifact
         uses: actions/upload-artifact@v4

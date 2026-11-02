@@ -3,7 +3,21 @@ set -euo pipefail
 
 # These are genuine screenshots captured from a published Flow Play APK,
 # running on a freshly booted Android emulator. Do not substitute mockups.
-mkdir -p screenshot-output
+mkdir -p screenshot-output screenshot-debug
+
+# Keep diagnostics out of the public screenshots if the emulator misbehaves.
+save_failure_diagnostics() {
+  local status=$?
+  if [[ "$status" -ne 0 ]]; then
+    echo "Screenshot capture failed; collecting emulator diagnostics."
+    adb exec-out screencap -p > screenshot-debug/failure-screen.png 2>/dev/null || true
+    adb shell uiautomator dump /sdcard/flowplay-failure-ui.xml >/dev/null 2>&1 || true
+    adb pull /sdcard/flowplay-failure-ui.xml screenshot-debug/failure-ui.xml >/dev/null 2>&1 || true
+    adb shell dumpsys activity activities > screenshot-debug/activities.txt 2>/dev/null || true
+  fi
+}
+trap save_failure_diagnostics EXIT
+
 adb wait-for-device
 adb install -r flow-play-release.apk
 
@@ -57,19 +71,64 @@ fi
 # Let the app finish first-run navigation before checking visible tabs.
 sleep 8
 
-# A real Flow Play home screen should expose the app's main tabs.
-adb shell uiautomator dump /sdcard/flowplay-ui.xml >/dev/null
-adb pull /sdcard/flowplay-ui.xml screenshot-output/ui.xml >/dev/null
-python3 - <<'PY'
+# Do not confuse an emulator system dialog with the actual app.
+# Some emulator images show "Pixel Launcher isn't responding" over Flow Play.
+# Only dismiss that known launcher problem, never an app crash.
+verified=0
+for attempt in 1 2 3 4 5 6 7 8 9 10; do
+  if ! adb shell uiautomator dump /sdcard/flowplay-ui.xml >/dev/null 2>&1; then
+    echo "UI dump not ready (attempt $attempt)."
+    sleep 4
+    continue
+  fi
+  adb pull /sdcard/flowplay-ui.xml screenshot-output/ui.xml >/dev/null
+
+  ui_check="$(python3 - <<'PY'
+import re
 import xml.etree.ElementTree as ET
 root = ET.parse('screenshot-output/ui.xml').getroot()
-labels = [((n.get('text') or '') + ' ' + (n.get('content-desc') or '')).casefold()
-          for n in root.iter('node')]
-print('Visible labels:', [x.strip() for x in labels if x.strip()][:60])
-if not any('subscription' in s or "what's new" in s or 'what’s new' in s
-           or 'bookmarked playlist' in s for s in labels):
-    raise SystemExit('Could not verify the Flow Play home tabs; screenshots not published.')
+nodes = list(root.iter('node'))
+labels = [((n.get('text') or '') + ' ' + (n.get('content-desc') or '')).casefold().strip()
+          for n in nodes]
+print('UI labels:', ', '.join(x for x in labels if x)[:350], file=__import__('sys').stderr)
+joined = ' '.join(labels)
+if 'launcher isn' in joined and 'responding' in joined:
+    for node in nodes:
+        label = ((node.get('text') or '') + ' ' + (node.get('content-desc') or '')).casefold()
+        match = re.fullmatch(r'\[(\d+),(\d+)\]\[(\d+),(\d+)\]', node.get('bounds') or '')
+        if 'close app' in label and match:
+            x1, y1, x2, y2 = map(int, match.groups())
+            print(f'DISMISS {((x1+x2)//2)} {((y1+y2)//2)}')
+            raise SystemExit(0)
+    print('LAUNCHER_DIALOG')
+elif any('subscription' in s or "what's new" in s or 'what’s new' in s
+         or 'bookmarked playlist' in s for s in labels):
+    print('VERIFIED')
+else:
+    print('WAIT')
 PY
+)"
+  if [[ "$ui_check" == "VERIFIED" ]]; then
+    current="$(foreground_activity)"
+    if [[ "$current" == *"$package"* ]]; then
+      echo "Verified real Flow Play home tabs and foreground app."
+      verified=1
+      break
+    fi
+  elif [[ "$ui_check" == DISMISS* ]]; then
+    read -r _ tap_x tap_y <<< "$ui_check"
+    echo "Dismissing unresponsive Android launcher, not Flow Play."
+    adb shell input tap "$tap_x" "$tap_y"
+  elif [[ "$ui_check" == "LAUNCHER_DIALOG" ]]; then
+    echo "Launcher dialog visible without a Close app button; pressing Back."
+    adb shell input keyevent KEYCODE_BACK
+  fi
+  sleep 5
+done
+if [[ "$verified" -ne 1 ]]; then
+  echo "No verified Flow Play home screen after retries; refusing screenshots."
+  exit 1
+fi
 
 # Capture the real app home screen.
 adb exec-out screencap -p > screenshot-output/01-flow-play-home.png
