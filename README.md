@@ -69,9 +69,13 @@ Flow Play downloads are provided through **this repository's GitHub Releases**, 
 
 ## Screenshots
 
-The old pictures on this repository showed **NewPipe, not Flow Play**, so they have been removed from the project description and app-listing images.
+These screenshots were taken from the **published Flow Play Home + Android Auto 360p APK** running in an Android emulator. They are real captures, not mock-ups or old NewPipe promotional pictures.
 
-We'll only put screenshots here once they have been captured from a **real Flow Play build** and checked against what people will actually see. We don't want to show mock-ups as if they were app screenshots.
+| Flow Play home | Navigation menu |
+|:--:|:--:|
+| [![Flow Play home screen](docs/screenshots/01-flow-play-home.png)](docs/screenshots/01-flow-play-home.png) | [![Flow Play navigation menu](docs/screenshots/02-flow-play-navigation.png)](docs/screenshots/02-flow-play-navigation.png) |
+
+[See the original screenshots](docs/screenshots). The look may vary between builds and Android versions. Android Auto car-screen screenshots are not included yet.
 
 ## What we're improving next
 
