@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - flowplay-v2-reliability
+    paths-ignore:
+      - README.md
+      - docs/screenshots/**
   workflow_dispatch:
 
 permissions:
