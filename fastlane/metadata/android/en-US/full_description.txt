@@ -1,1 +1,11 @@
-NewPipe does not use any Google framework libraries, or the YouTube API. It only parses the website in order to gain the information it needs. Therefore this app can be used on devices without Google Services installed. Also, you don't need a YouTube account to use NewPipe, and it's FLOSS.
+Flow Play makes watching YouTube and listening to music on Android feel simpler.
+
+Find videos, follow channels and manage playlists without signing in to a Google account. Enjoy background listening, playback controls and a less cluttered home screen.
+
+Selected experimental builds also support audio-focused Android Auto listening, with music and playlist browsing, suggestions, and voice search where supported by the car. Some builds are designed to use less mobile data.
+
+Flow Play is under active development. Features vary by release and some Android Auto controls have not been tested on physical head units. Read the notes for the version you download.
+
+Get genuine Flow Play APKs from: https://github.com/userdc-dev/FlowPlay/releases
+
+Flow Play is an independent open-source project based on NewPipe. It is not an official app from YouTube, Google or the NewPipe team.

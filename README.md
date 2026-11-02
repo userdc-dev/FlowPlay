@@ -1,151 +1,98 @@
-<p align="center"><a href="https://newpipe.net"><img src="assets/new_pipe_icon_5.png" width="150"></a></p> 
-<h2 align="center"><b>NewPipe</b></h2>
-<h4 align="center">A libre lightweight streaming front-end for Android.</h4>
+# Flow Play
 
-<p align="center"><a href="https://f-droid.org/packages/org.schabi.newpipe/"><img src="https://fdroid.gitlab.io/artwork/badge/get-it-on-en.svg" alt="Get it on F-Droid" width=206/></a></p>
+**Your videos, music and subscriptions — without the clutter.**
 
-<p align="center">
-<a href="https://github.com/TeamNewPipe/NewPipe/releases" alt="GitHub NewPipe releases"><img src="https://img.shields.io/github/release/TeamNewPipe/NewPipe.svg" ></a>
-<a href="https://github.com/TeamNewPipe/NewPipe-nightly/releases" alt="GitHub NewPipe nightly releases"><img src="https://img.shields.io/github/release/TeamNewPipe/NewPipe-nightly.svg?labelColor=purple&label=dev%20nightly"></a>
-<a href="https://www.gnu.org/licenses/gpl-3.0" alt="License: GPLv3"><img src="https://img.shields.io/badge/License-GPL%20v3-blue.svg"></a>
-<a href="https://github.com/TeamNewPipe/NewPipe/actions" alt="Build Status"><img src="https://github.com/TeamNewPipe/NewPipe/actions/workflows/ci.yml/badge.svg?branch=dev&event=push"></a>
-<a href="https://hosted.weblate.org/engage/newpipe/" alt="Translation Status"><img src="https://hosted.weblate.org/widgets/newpipe/-/svg-badge.svg"></a>
-</p>
+Flow Play is a free, open-source Android app for watching YouTube videos and listening to music. It is made for people who want a simpler home screen, more control over playback, and an easier way to listen in the car.
 
-<p align="center">
-<a href="https://web.libera.chat/#newpipe" alt="IRC channel: #newpipe"><img src="https://img.shields.io/badge/IRC%20chat-%23newpipe-brightgreen.svg"></a>
-<a href="https://matrix.to/#/#newpipe:matrix.newpipe-ev.de" alt="Matrix channel: #newpipe"><img src="https://img.shields.io/badge/Matrix%20chat-%23newpipe-blue"></a>
-</p>
+No YouTube or Google account is needed to watch, search, or follow channels in the app. Flow Play builds on the open-source work of NewPipe, but it has its own direction and features.
 
-<hr>
-<p align="center"><a href="#screenshots">Screenshots</a> &bull; <a href="#supported-services">Supported Services</a> &bull; <a href="#description">Description</a> &bull; <a href="#features">Features</a> &bull; <a href="#installation-and-updates">Installation and updates</a> &bull; <a href="#contribution">Contribution</a> &bull; <a href="#donate">Donate</a> &bull; <a href="#license">License</a></p>
-<p align="center"><a href="https://newpipe.net">Website</a> &bull; <a href="https://newpipe.net/blog/">Blog</a> &bull; <a href="https://newpipe.net/FAQ/">FAQ</a> &bull; <a href="https://newpipe.net/press/">Press</a></p>
-<hr>
+**[Download Flow Play](https://github.com/userdc-dev/FlowPlay/releases) · [See the Home + Android Auto 360p build](https://github.com/userdc-dev/FlowPlay/releases/tag/flow-play-home-360p-auto-0.29.1) · [Report a problem or suggest an idea](https://github.com/userdc-dev/FlowPlay/issues)**
 
-*Read this document in other languages: [Deutsch](doc/README.de.md), [English](README.md), [Español](doc/README.es.md), [Français](doc/README.fr.md), [हिन्दी](doc/README.hi.md), [Italiano](doc/README.it.md), [한국어](doc/README.ko.md), [Português Brasil](doc/README.pt_BR.md), [Polski](doc/README.pl.md), [ਪੰਜਾਬੀ ](doc/README.pa.md), [日本語](doc/README.ja.md), [Română](doc/README.ro.md), [Soomaali](doc/README.so.md), [Türkçe](doc/README.tr.md), [正體中文](doc/README.zh_TW.md), [অসমীয়া](doc/README.asm.md), [Српски](doc/README.sr.md), [العربية](README.ar.md)* 
+## What makes Flow Play different?
 
-> [!warning]
-> <b>THIS APP IS IN BETA, SO YOU MAY ENCOUNTER BUGS. IF YOU DO, OPEN AN ISSUE IN OUR GITHUB REPOSITORY BY FILLING OUT THE ISSUE TEMPLATE.</b>
-> 
-> <b>PUTTING NEWPIPE, OR ANY FORK OF IT, INTO THE GOOGLE PLAY STORE VIOLATES THEIR TERMS AND CONDITIONS.</b>
->
-> <b>"NewPipe" IS A REGISTERED WORD MARK SUBJECT TO [ITS TRADEMARK POLICY](https://newpipe-ev.de/policy/trademark/). INFRINGING APPLICATIONS WILL NOT BE TOLERATED.</b>
+- **Less clutter.** Find the videos and channels you actually care about instead of wading through extra sections.
+- **Watch or just listen.** Play videos normally, use background playback, or choose audio-only listening when supported by your build.
+- **Make playback yours.** Adjust playback speed and video quality, manage what plays next, and save videos or playlists.
+- **Follow channels without signing in.** Keep your subscriptions in the app, and import them when moving from another supported app or backup.
+- **Save data.** Some builds offer mobile-data-friendly defaults so video doesn't use more data than you intended.
+- **Take your music into the car.** Experimental Android Auto support focuses on audio, playlists, browsing and hands-free listening.
+
+We care more about a reliable, easy-to-use app than filling it with settings and buttons.
+
+## On your phone
+
+The **Home + Android Auto 360p** build has a simpler four-tab home screen:
+
+1. **What's New** — recent videos from channels you follow.
+2. **Subscriptions** — your channels in one place.
+3. **Bookmarked Playlists** — playlists you've saved for later.
+4. **Live** — find live content when you want it.
+
+That build also uses **360p as the default on mobile data** to help save data. You can still choose another quality where playback supports it.
+
+Other experimental Flow Play releases may have different layouts or features. Check the notes for the specific download you choose.
+
+## In your car with Android Auto
+
+Flow Play is also being developed for **listening while driving**, without needing to switch to a different music app.
+
+Depending on the build and your car's Android Auto support, you can:
+
+- Browse music, playlists and suggestions based on what you've listened to recently.
+- Search by voice, or use car-screen search when the car permits it.
+- Save tracks to **Car Saves** and open shortcuts to existing playlists.
+- Use like/dislike and playback controls where your car shows them.
+- Keep listening with the car display focused on audio.
+
+**Important:** Android Auto in Flow Play is for **audio, not watching video on the car screen**. Some controls depend on your car, and physical-head-unit testing is still ongoing.
+
+## Download and install
+
+**[See all Flow Play downloads](https://github.com/userdc-dev/FlowPlay/releases)**
+
+Looking for the specific 360p phone and Android Auto build?
+
+**[Download Flow_Play_Home_360p_Auto_0.29.1.apk](https://github.com/userdc-dev/FlowPlay/releases/download/flow-play-home-360p-auto-0.29.1/Flow_Play_Home_360p_Auto_0.29.1.apk)**
+
+To install it:
+
+1. Open the download link on your Android phone.
+2. Download the APK and open it.
+3. If Android asks, allow your browser or file manager to install apps.
+4. Open Flow Play and set it up the way you like.
+
+The **FlowPlay v2** releases also explore improved audio-only listening, queue recovery, playlist checks and playback feedback. You can find those on the same [Releases page](https://github.com/userdc-dev/FlowPlay/releases).
+
+**Before switching builds:** Back up your subscriptions, history and playlists using the app's backup/export options where available. Experimental releases may use different app identities or signing keys, so they may not always install as an update over an earlier version. Don't uninstall an older copy until you've saved anything important.
+
+Flow Play downloads are provided through **this repository's GitHub Releases**, not through NewPipe's download page or F-Droid listing.
 
 ## Screenshots
 
-[<img src="fastlane/metadata/android/en-US/images/phoneScreenshots/00.png" width=160>](fastlane/metadata/android/en-US/images/phoneScreenshots/00.png)
-[<img src="fastlane/metadata/android/en-US/images/phoneScreenshots/01.png" width=160>](fastlane/metadata/android/en-US/images/phoneScreenshots/01.png)
-[<img src="fastlane/metadata/android/en-US/images/phoneScreenshots/02.png" width=160>](fastlane/metadata/android/en-US/images/phoneScreenshots/02.png)
-[<img src="fastlane/metadata/android/en-US/images/phoneScreenshots/03.png" width=160>](fastlane/metadata/android/en-US/images/phoneScreenshots/03.png)
-[<img src="fastlane/metadata/android/en-US/images/phoneScreenshots/04.png" width=160>](fastlane/metadata/android/en-US/images/phoneScreenshots/04.png)
-[<img src="fastlane/metadata/android/en-US/images/phoneScreenshots/05.png" width=160>](fastlane/metadata/android/en-US/images/phoneScreenshots/05.png)
-[<img src="fastlane/metadata/android/en-US/images/phoneScreenshots/06.png" width=160>](fastlane/metadata/android/en-US/images/phoneScreenshots/06.png)
-[<img src="fastlane/metadata/android/en-US/images/phoneScreenshots/07.png" width=160>](fastlane/metadata/android/en-US/images/phoneScreenshots/07.png)
-[<img src="fastlane/metadata/android/en-US/images/phoneScreenshots/08.png" width=160>](fastlane/metadata/android/en-US/images/phoneScreenshots/08.png)
-<br/><br/>
-[<img src="fastlane/metadata/android/en-US/images/tenInchScreenshots/09.png" width=405>](fastlane/metadata/android/en-US/images/tenInchScreenshots/09.png)
-[<img src="fastlane/metadata/android/en-US/images/tenInchScreenshots/10.png" width=405>](fastlane/metadata/android/en-US/images/tenInchScreenshots/10.png)
+The old pictures on this repository showed **NewPipe, not Flow Play**, so they have been removed from the project description and app-listing images.
 
-### Supported Services
+We'll only put screenshots here once they have been captured from a **real Flow Play build** and checked against what people will actually see. We don't want to show mock-ups as if they were app screenshots.
 
-NewPipe currently supports these services:
+## What we're improving next
 
-<!-- We link to the service websites separately to avoid people accidentally opening a website they didn't want to. -->
-* YouTube ([website](https://www.youtube.com/)) and YouTube Music ([website](https://music.youtube.com/)) ([wiki](https://en.wikipedia.org/wiki/YouTube))
-* PeerTube ([website](https://joinpeertube.org/)) and all its instances (open the website to know what that means!) ([wiki](https://en.wikipedia.org/wiki/PeerTube))
-* Bandcamp ([website](https://bandcamp.com/)) ([wiki](https://en.wikipedia.org/wiki/Bandcamp))
-* SoundCloud ([website](https://soundcloud.com/)) ([wiki](https://en.wikipedia.org/wiki/SoundCloud))
-* media.ccc.de ([website](https://media.ccc.de/)) ([wiki](https://en.wikipedia.org/wiki/Chaos_Computer_Club))
+Flow Play is still a work in progress. Our focus is:
 
-As you can see, NewPipe supports multiple video and audio services. Though it started off with YouTube, other people have added more services over the years, making NewPipe more and more versatile!
+- Fewer playback failures, smoother background listening and better recovery after interruptions.
+- A tidier, darker interface that puts subscriptions and playlists first.
+- Better queues, related recommendations and continuous Shorts playback.
+- Easier downloads, updates, backup and restore.
+- More useful Android Auto browsing and controls, subject to what the car allows.
 
-Partially due to circumstance, and partially due to its popularity, YouTube is the best supported out of these services. If you use or are familiar with any of these other services, please help us improve support for them! We're looking for maintainers for SoundCloud and PeerTube.
+These are **goals**, not a promise that every feature is already finished in every release.
 
-If you intend to add a new service, please get in touch with us first! Our [docs](https://teamnewpipe.github.io/documentation/) provide more information on how a new service can be added to the app and to the [NewPipe Extractor](https://github.com/TeamNewPipe/NewPipeExtractor).
+## Found a problem?
 
-## Description
+Please [open a GitHub issue](https://github.com/userdc-dev/FlowPlay/issues) and tell us which APK you installed, your Android version, what you tried, and what happened. A real screenshot is especially helpful for layout problems.
 
-NewPipe works by fetching the required data from the official API (e.g. PeerTube) of the service you're using. If the official API is restricted (e.g. YouTube) for our purposes, or is proprietary, the app parses the website or uses an internal API instead. This means that you don't need an account on any service to use NewPipe.
+## Credits and license
 
-Also, since they are free and open source software, neither the app nor the Extractor use any proprietary libraries or frameworks, such as Google Play Services. This means you can use NewPipe on devices or custom ROMs that do not have Google apps installed.
+Flow Play is an **independent, open-source project built on [NewPipe](https://github.com/TeamNewPipe/NewPipe)**. Thanks to the NewPipe developers and other open-source contributors whose work makes this possible.
 
-### Features
+Flow Play is not an official YouTube, Google, Android Auto or NewPipe app, and is not endorsed by those projects.
 
-* Watch videos at resolutions up to 4K
-* Listen to audio in the background, only loading the audio stream to save data
-* Popup mode (floating player, aka Picture-in-Picture)
-* Watch live streams
-* Show/hide subtitles/closed captions
-* Search videos and audios (on YouTube, you can specify the content language as well)
-* Enqueue videos (and optionally save them as local playlists)
-* Show/hide general information about videos (such as description and tags)
-* Show/hide next/related videos
-* Show/hide comments
-* Search videos, audios, channels, playlists and albums
-* Browse videos and audios within a channel
-* Subscribe to channels (yes, without logging into any account!)
-* Get notifications about new videos from channels you're subscribed to
-* Create and edit channel groups (for easier browsing and management)
-* Browse video feeds generated from your channel groups
-* View and search your watch history
-* Search and watch playlists (these are remote playlists, which means they're fetched from the service you're browsing)
-* Create and edit local playlists (these are created and saved within the app, and have nothing to do with any service)
-* Download videos/audios/subtitles (closed captions)
-* Open in Kodi
-* Watch/Block age-restricted material
-
-<!-- Hidden span to keep old links compatible. You should remove this span if you're translating the README into another language.-->
-<span id="updates"></span>
-
-## Installation and updates
-You can install NewPipe using one of the following methods:
- 1. Add our custom repo to F-Droid and install it from there. The instructions are here: https://newpipe.net/FAQ/tutorials/install-add-fdroid-repo/
- 2. Download the APK from [GitHub Releases](https://github.com/TeamNewPipe/NewPipe/releases), [compare the signing key](#apk-info) and install it.
- 3. Update via F-Droid. This is the slowest method of getting updates, as F-Droid must recognize changes, build the APK itself, sign it, and then push the update to users.
- 4. Build a debug APK yourself. This is the fastest way to get new features on your device, but is much more complicated, so we recommend using one of the other methods.
- 5. If you're interested in a specific feature or bugfix provided in a Pull Request in this repo, you can also download its APK from within the PR. Read the PR description for instructions. The great thing about PR-specific APKs is that they're installed side-by-side the official app, so you don't have to worry about losing your data or messing anything up.
-
-We recommend method 1 for most users. APKs installed using method 1 or 2 are compatible with each other (meaning that if you installed NewPipe using either method 1 or 2, you can also update NewPipe using the other), but not with those installed using method 3. This is due to the same signing key (ours) being used for 1 and 2, but a different signing key (F-Droid's) being used for 3. Building a debug APK using method 4 excludes a key entirely. Signing keys help ensure that a user isn't tricked into installing a malicious update to an app. When using method 5, each APK is signed with a different random key supplied by GitHub Actions, so you cannot even update it. You will have to backup and restore the app data each time you wish to use a new APK.
-
-In the meanwhile, if you want to switch sources for some reason (e.g. NewPipe's core functionality breaks and F-Droid doesn't have the latest update yet), we recommend following this procedure:
-1. Back up your data via Settings > Backup and Restore > Export Database so you keep your history, subscriptions, and playlists
-2. Uninstall NewPipe
-3. Download the APK from the new source and install it
-4. Import the data from step 1 via Settings > Backup and Restore > Import Database
-
-> [!Note]
-> When you're importing a database into the official app, always make sure that it is the one you exported _from_ the official app. If you import a database exported from an APK other than the official app, it may break things. Such an action is unsupported, and you should only do so when you're absolutely certain you know what you're doing.
-
-### APK Info
-
-This is the SHA fingerprint of NewPipe's signing key to verify downloaded APKs which are signed by us. The fingerprint is also available on [NewPipe's website](https://newpipe.net#download). This is relevant for method 2.
-```
-CB:84:06:9B:D6:81:16:BA:FA:E5:EE:4E:E5:B0:8A:56:7A:A6:D8:98:40:4E:7C:B1:2F:9E:75:6D:F5:CF:5C:AB
-```
-
-## Contribution
-Whether you have ideas, translations, design changes, code cleaning, or even major code changes, help is always welcome. The app gets better and better with each contribution, no matter how big or small! If you'd like to get involved, check our [contribution notes](.github/CONTRIBUTING.md).
-
-<a href="https://hosted.weblate.org/engage/newpipe/">
-<img src="https://hosted.weblate.org/widgets/newpipe/-/287x66-grey.png" alt="Translation status" />
-</a>
-
-## Donate
-If you like NewPipe, you're welcome to send a donation. We prefer Liberapay, as it is both open-source and non-profit. For further info on donating to NewPipe, please visit our [website](https://newpipe.net/donate).
-
-<table>
-  <tr>
-    <td><a href="https://liberapay.com/TeamNewPipe/"><img src="https://upload.wikimedia.org/wikipedia/commons/2/27/Liberapay_logo_v2_white-on-yellow.svg" alt="Liberapay" width="80px" ></a></td>
-    <td><a href="https://liberapay.com/TeamNewPipe/"><img src="assets/liberapay_qr_code.png" alt="Visit NewPipe at liberapay.com" width="100px"></a></td>
-    <td><a href="https://liberapay.com/TeamNewPipe/donate"><img src="assets/liberapay_donate_button.svg" alt="Donate via Liberapay" height="35px"></a></td>
-  </tr>
-</table>
-
-## Privacy Policy
-
-The NewPipe project aims to provide a private, anonymous experience for using web-based media services. Therefore, the app does not collect any data without your consent. NewPipe's privacy policy explains in detail what data is sent and stored when you send a crash report, or leave a comment in our blog. You can find the document [here](https://newpipe.net/legal/privacy/).
-
-## License
-[![GNU GPLv3 Image](https://www.gnu.org/graphics/gplv3-127x51.png)](https://www.gnu.org/licenses/gpl-3.0.en.html)  
-
-NewPipe is Free Software: You can use, study, share, and improve it at will. Specifically you can redistribute and/or modify it under the terms of the [GNU General Public License](https://www.gnu.org/licenses/gpl.html) as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+The source is shared under the [GNU General Public License v3 or later](LICENSE).

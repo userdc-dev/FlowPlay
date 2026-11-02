@@ -1,1 +1,1 @@
-A free lightweight YouTube frontend for Android.
+Flow Play: YouTube videos, music and Android Auto audio on your terms.
