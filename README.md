@@ -29,7 +29,11 @@ These are **real Flow Play captures**, not NewPipe promotional images. The Andro
 |:--:|:--:|
 | [![Flow Play home screen](docs/screenshots/01-flow-play-home.png)](docs/screenshots/01-flow-play-home.png) | [![Flow Play navigation drawer](docs/screenshots/02-flow-play-navigation.png)](docs/screenshots/02-flow-play-navigation.png) |
 
-[Photo of the latest Flow Play side menu](docs/screenshots/03-flow-play-phone-menu.png), including the **Import / Export** shortcut.
+### Latest phone menu
+
+[<img src="docs/screenshots/03-flow-play-phone-menu.jpg" alt="Flow Play side menu with the Import / Export shortcut" width="230">](docs/screenshots/03-flow-play-phone-menu.jpg)
+
+The side menu includes a direct **Import / Export** shortcut for backup and restore.
 
 ### On Android Auto
 
@@ -43,7 +47,7 @@ These are **real Flow Play captures**, not NewPipe promotional images. The Andro
 
 [More real Android Auto browsing](docs/screenshots/08-flow-play-android-auto-tracks.jpg).
 
-*The Android Auto photos and phone-menu photo are contributed device screenshots and may need to be uploaded separately. The files above are the intended paths in this repository; the initial home/menu screenshots are already available.*
+*These are actual Flow Play screenshots and photographed Android Auto displays, not promotional mockups. The car-display photos were cropped to keep the app interface in focus.*
 
 ## Install and update
 
