@@ -32,9 +32,6 @@ jobs:
         run: |
           if test -e /dev/kvm; then sudo chmod 666 /dev/kvm; fi
 
-      - name: Set up Android
-        uses: android-actions/setup-android@v3
-
       - name: Capture genuine phone screens
         uses: reactivecircus/android-emulator-runner@v2
         with:
