@@ -278,9 +278,7 @@ public class MainActivity extends AppCompatActivity {
                             R.string.flowplay_resume_last)
                     .setIcon(R.drawable.ic_history);
         }
-        menu.add(R.id.menu_transfer_group, MENU_ID_TRANSFER, ORDER,
-                        R.string.flowplay_data_transfer)
-                .setIcon(R.drawable.ic_settings_backup_restore);
+        ensureImportExportDrawerItem();
 
         menu.add(R.id.menu_options_about_group, MENU_ID_AUDIO_OUTPUT, ORDER,
                         R.string.flowplay_audio_output)
@@ -299,6 +297,26 @@ public class MainActivity extends AppCompatActivity {
                     .setIcon(KioskTranslator.getKioskIcon(kiosk));
             kioskMenuItemId++;
         }
+    }
+
+    /**
+     * Keep Import / Export available as a distinct drawer item, immediately
+     * before Audio output and Settings. The link uses the actual Settings
+     * backup/restore fragment, not an unimplemented import dialog.
+     *
+     * Recheck when returning from another activity so restoring a listening
+     * session or rebuilding the drawer cannot inadvertently hide the shortcut.
+     */
+    private void ensureImportExportDrawerItem() {
+        final Menu menu = drawerLayoutBinding.navigation.getMenu();
+        MenuItem transfer = menu.findItem(MENU_ID_TRANSFER);
+        if (transfer == null) {
+            transfer = menu.add(R.id.menu_transfer_group, MENU_ID_TRANSFER, ORDER,
+                            R.string.flowplay_data_transfer)
+                    .setIcon(R.drawable.ic_settings_backup_restore);
+        }
+        transfer.setVisible(true);
+        transfer.setEnabled(true);
     }
 
     private boolean drawerItemSelected(final MenuItem item) {
@@ -437,6 +455,9 @@ public class MainActivity extends AppCompatActivity {
                 Log.w(TAG, "Could not refresh saved session shortcut", e);
             }
         }
+
+        // Resilience against an incomplete NavigationView menu refresh.
+        ensureImportExportDrawerItem();
 
         final boolean isHistoryEnabled = sharedPreferences.getBoolean(
                 getString(R.string.enable_watch_history_key), true);

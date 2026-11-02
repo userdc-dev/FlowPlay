@@ -204,6 +204,22 @@ jobs:
           grep -q 'player.applyFlowPlayFeedback(info.getUrl(), info.getUploaderName(), false)' app/src/main/java/org/schabi/newpipe/fragments/detail/VideoDetailFragment.java
           echo "Phone playback buttons and Android Auto action share live skip/queue-refresh logic"
 
+      - name: Verify Import / Export drawer and backup page
+        shell: bash
+        run: |
+          set -euo pipefail
+          main="app/src/main/java/org/schabi/newpipe/MainActivity.java"
+          settings="app/src/main/java/org/schabi/newpipe/settings/SettingsActivity.java"
+          strings="app/src/main/res/values/strings.xml"
+          grep -q 'ensureImportExportDrawerItem();' "$main"
+          grep -q 'menu.add(R.id.menu_transfer_group, MENU_ID_TRANSFER' "$main"
+          grep -q 'R.string.flowplay_data_transfer' "$main"
+          grep -q 'item.getItemId() == MENU_ID_TRANSFER' "$main"
+          grep -q 'SettingsActivity.EXTRA_FLOWPLAY_BACKUP_ACTION' "$main"
+          grep -q 'new BackupRestoreSettingsFragment()' "$settings"
+          grep -q 'name="flowplay_data_transfer">Import / Export' "$strings"
+          echo "Import / Export remains visible and opens the real Backup and Restore page"
+
       - name: Configure permanent signing (required for stable APKs)
         env:
           FLOWPLAY_SIGNING_KEYSTORE_BASE64: ${{ secrets.FLOWPLAY_SIGNING_KEYSTORE_BASE64 }}
@@ -300,7 +316,7 @@ jobs:
           gh release create "$tag" dist/Flow_Play_v2_Reliability.apk dist/SHA256SUMS.txt \
             --target "$GITHUB_SHA" \
             --title "FlowPlay v2 — Build $GITHUB_RUN_NUMBER" \
-            --notes "Permanently signed FlowPlay build: stable app package and certificate verified before publication. Existing features preserved: phone and Android Auto thumbs feedback, instant skip-on-dislike, continuous queue, audio data savings and playlist health. One-time migration required from test-signed v2.8, because Android will not allow an update signed by a different certificate. Google Play Protect may still recommend a scan for sideloaded APKs."
+            --notes "FlowPlay permanent-signing release: preserve the full drawer from earlier versions, with always-visible Import / Export taking users directly to Backup and Restore, plus Subscriptions, Whats New, Bookmarked Playlists, Downloads, History, Resume Last Listening, Audio Output, Settings and optional discover categories. All playback, Android Auto, recommendations, skip-on-dislike, update checking and offline features preserved. APK certificate verified."
           # Multiple CI runs can finish out of order. Point latest to the highest
           # numbered v2 release, not whichever workflow happened to finish last.
           highest="$(gh release list --limit 50 --json tagName --jq '.[].tagName' \
